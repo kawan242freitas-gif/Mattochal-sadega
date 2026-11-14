@@ -6,6 +6,7 @@ import {
   StatusBar,
   StyleSheet,
   Image,
+  Linking,
   Text,
   TextInput,
   TouchableOpacity,
@@ -15,18 +16,26 @@ import {
 } from "react-native";
 import { GlassView } from "expo-glass-effect";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { House, Search, ShoppingCart, Settings } from "lucide-react-native";
+import { ArrowLeft, House, Minus, Plus, Search, ShoppingBag, ShoppingCart, Settings, Trash2, X } from "lucide-react-native";
 
 type PanelName = "search" | "cart" | "settings" | null;
 type Product = { id: string; name: string; label: string; price: string; description: string; tone: string; imageUrl?: string };
 
-const initialProducts: Product[] = [
-  { id: "sparkling-wine", name: "Vinho espumante", label: "VINHO ESPUMANTE", price: "R$ 89,90", description: "Espumante selecionado para brindar bons momentos.", tone: "gold" },
-  { id: "fortified-wine", name: "Vinho fortificado", label: "VINHO FORTIFICADO", price: "R$ 119,90", description: "Vinho encorpado, com aroma marcante e final elegante.", tone: "ivory" },
-  { id: "aromatized-wine", name: "Vinho aromatizado", label: "VINHO AROMATIZADO", price: "R$ 69,90", description: "Uma bebida aromática para apreciar em boa companhia.", tone: "olive" },
-];
-
 const HERO_IMAGE_URL = "https://r2.fivemanage.com/vLUsF9vzqBOo7DSFHERFX/CestadeVinhosMattoChals.png";
+
+function parsePrice(value?: string) {
+  if (!value || value.toLocaleLowerCase().includes("consulte")) return null;
+  const normalized = value.replace(/[^\d,.-]/g, "");
+  const decimal = normalized.includes(",")
+    ? normalized.replace(/\./g, "").replace(",", ".")
+    : normalized;
+  const price = Number(decimal);
+  return Number.isFinite(price) ? price : null;
+}
+
+function formatPrice(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 const navItems = [
   { id: "home", label: "Início", Icon: House },
@@ -79,7 +88,8 @@ function SiteScreen() {
   const [active, setActive] = useState("home");
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<Record<string, number>>({});
-  const [products, setProducts] = useState(initialProducts);
+  const [orderNotes, setOrderNotes] = useState("");
+  const [products, setProducts] = useState<Product[]>([]);
   const [databaseMode, setDatabaseMode] = useState<"checking" | "local" | "connected">("checking");
   const [adminTokenInput, setAdminTokenInput] = useState("");
   const [adminToken, setAdminToken] = useState("");
@@ -130,6 +140,13 @@ function SiteScreen() {
     return products.filter((product) => product.name.toLocaleLowerCase().includes(normalized));
   }, [query]);
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
+  const cartRows = Object.entries(cart).map(([name, quantity]) => {
+    const product = products.find((item) => item.name === name);
+    const unitPrice = parsePrice(product?.price);
+    return { name, quantity, product, unitPrice, lineTotal: unitPrice === null ? null : unitPrice * quantity };
+  });
+  const cartSubtotal = cartRows.reduce((sum, item) => sum + (item.lineTotal ?? 0), 0);
+  const hasUnpricedItems = cartRows.some((item) => item.lineTotal === null);
 
   function addToCart(name: string) {
     setCart((current) => ({ ...current, [name]: (current[name] ?? 0) + 1 }));
@@ -143,6 +160,32 @@ function SiteScreen() {
       delete next[name];
       return next;
     });
+  }
+
+  function changeCartQuantity(name: string, amount: number) {
+    setCart((current) => {
+      const nextQuantity = (current[name] ?? 0) + amount;
+      if (nextQuantity <= 0) {
+        const next = { ...current };
+        delete next[name];
+        return next;
+      }
+      return { ...current, [name]: nextQuantity };
+    });
+  }
+
+  function sendOrderToWhatsApp() {
+    const lines = cartRows.map(({ name, quantity, lineTotal }) => `• ${quantity}x ${name} — ${lineTotal === null ? "preço a confirmar" : formatPrice(lineTotal)}`);
+    const message = [
+      "Olá! Gostaria de fazer este pedido na Matto Chalés:",
+      "",
+      ...lines,
+      "",
+      `Subtotal: ${formatPrice(cartSubtotal)}${hasUnpricedItems ? " (há itens com preço a confirmar)" : ""}`,
+      "Entrega: a combinar",
+      orderNotes.trim() ? `Observações: ${orderNotes.trim()}` : "",
+    ].filter(Boolean).join("\n");
+    void Linking.openURL(`https://wa.me/?text=${encodeURIComponent(message)}`).catch(() => undefined);
   }
 
   function openProductForm(product?: Product) {
@@ -252,6 +295,12 @@ function SiteScreen() {
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       return;
     }
+    if (id === "search") {
+      const opening = panel !== "search";
+      setPanel(opening ? "search" : null);
+      if (opening) scrollRef.current?.scrollTo({ y: 0, animated: true });
+      return;
+    }
     setPanel((current) => current === id ? null : id as PanelName);
   }
 
@@ -309,6 +358,12 @@ function SiteScreen() {
               </View>
             </View>
 
+            {panel === "search" && <View style={[styles.expandedSearch, isMobile && styles.expandedSearchMobile]}>
+              <Search size={18} color="#c18d5e" strokeWidth={2} />
+              <TextInput value={query} onChangeText={setQuery} placeholder="Buscar vinhos e bebidas..." placeholderTextColor="#9e9388" style={styles.expandedSearchInput} autoFocus accessibilityLabel="Buscar produtos" returnKeyType="search" />
+              <Pressable accessibilityRole="button" accessibilityLabel="Fechar busca" onPress={() => { setPanel(null); setActive("home"); }} style={styles.expandedSearchClose}><X size={18} color="#c9c0b7" /></Pressable>
+            </View>}
+
               <View style={[styles.hero, isMobile && styles.heroMobile]}>
               <View style={[styles.heroCopy, isMobile && styles.heroCopyMobile]}>
                 <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile, isSmallMobile && styles.heroTitleSmall]}>SEJA BEM-VINDO{"\n"}À NOSSA ADEGA</Text>
@@ -324,50 +379,65 @@ function SiteScreen() {
               {isMobile
                 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.productGridMobile}>{productCards}</ScrollView>
                 : <View style={styles.productGrid}>{productCards}</View>}
+              {products.length === 0 && query.length === 0 && <Text style={styles.emptyCatalog}>Nenhum produto cadastrado. Cadastre novos produtos em Configurações.</Text>}
               {query.length > 0 && shownProducts.length === 0 && <Text style={styles.noResults}>Nenhum vinho encontrado.</Text>}
-            </View>
-
-            <View style={[styles.feature, isMobile && styles.featureMobile]}>
-              <View style={[styles.featureArt, isMobile && styles.featureArtMobile]}><WineBottle small /></View>
-              <View style={[styles.featureCopy, isMobile && styles.featureCopyMobile]}><Text style={[styles.featureTitle, isMobile && styles.featureTitleMobile]}>ENCONTRE O{"\n"}VINHO IDEAL</Text><BodyCopy>...</BodyCopy><BodyCopy>...</BodyCopy></View>
-            </View>
-
-            <View style={[styles.stats, isMobile && styles.statsMobile]}>
-              {[["30+", "ANOS DE EXPERIÊNCIA"], ["100+", "NOVOS PRODUTOS"], ["2K+", "CLIENTES SATISFEITOS"], ["80+", "FILIAIS PELO MUNDO"]].map(([value, label]) => (
-                <View style={[styles.stat, isMobile && styles.statMobile]} key={value}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>
-              ))}
-            </View>
-
-            <View style={[styles.testimonials, isMobile && styles.testimonialsMobile]}>
-              <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>O QUE NOSSOS CLIENTES DIZEM{"\n"}SOBRE NOSSOS PRODUTOS</SectionTitle><View style={[styles.arrows, isMobile && styles.arrowsMobile]}><Text style={[styles.arrow, isMobile && styles.arrowMobile]}>‹</Text><Text style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}>›</Text></View></View>
-              <View style={[styles.quoteGrid, isMobile && styles.quoteGridMobile]}>
-                {[0, 1].map((id) => <View style={[styles.quoteCard, isMobile && styles.quoteCardMobile]} key={id}><Text style={styles.quoteMark}>“</Text><BodyCopy style={styles.quoteCopy}>...</BodyCopy><Text style={styles.quoteName}>CLIENTE - <Text style={styles.redText}>...</Text></Text><View style={styles.avatar} /></View>)}
-              </View>
-            </View>
-
-            <View style={[styles.campaign, isMobile && styles.campaignMobile]}>
-              <View style={styles.campaignBottles}><View style={styles.shadowBottle} /><View style={[styles.shadowBottle, styles.shadowBottleCenter]} /><View style={[styles.shadowBottle, styles.shadowBottleRight]} /></View>
-              <Text style={styles.campaignYearSmall}>2023</Text>
-              <Text style={styles.campaignTitle}>NOVIDADES EM VINHOS</Text>
-              <Text style={[styles.campaignYear, isMobile && styles.campaignYearMobile, isSmallMobile && styles.campaignYearSmallMobile]}>2023</Text>
-              <View style={[styles.campaignBottle, isMobile && styles.campaignBottleMobile]}><WineBottle small /></View>
-            </View>
-
-            <View style={[styles.cta, isMobile && styles.ctaMobile]}>
-              <View><Text style={styles.ctaTitle}>ADICIONE À SUA SACOLA</Text><BodyCopy style={styles.ctaCopy}>...</BodyCopy></View>
-              <Pressable onPress={() => addToCart("Seleção Matto Chalés")} style={styles.ctaButton}><Text style={styles.ctaButtonText}>Adicionar à Sacola</Text></Pressable>
             </View>
 
             <View style={[styles.footer, isMobile && styles.footerMobile]}>
               <View style={[styles.footerColumn, isMobile && styles.footerAboutMobile]}><Text style={styles.footerBrand}>Matto Chalés</Text><BodyCopy>...</BodyCopy><Text style={styles.social}>◉  ◎  ◌  ◉</Text></View>
-              <View style={[styles.footerColumn, isMobile && styles.footerColumnMobile]}><Text style={styles.footerHeading}>LINKS RÁPIDOS</Text><Text style={styles.footerLink}>Início</Text><Text style={styles.footerLink}>Produtos</Text><Text style={styles.footerLink}>Depoimentos</Text><Text style={styles.footerLink}>Contato</Text></View>
+              <View style={[styles.footerColumn, isMobile && styles.footerColumnMobile]}><Text style={styles.footerHeading}>LINKS RÁPIDOS</Text><Text style={styles.footerLink}>Início</Text><Text style={styles.footerLink}>Produtos</Text><Text style={styles.footerLink}>Contato</Text></View>
               <View style={[styles.footerColumn, isMobile && styles.footerColumnMobile]}><Text style={styles.footerHeading}>CONTATO</Text><Text style={styles.footerLink}>⌖  ...</Text><Text style={styles.footerLink}>☎  ...</Text><Text style={styles.footerLink}>✉  ...</Text></View>
             </View>
             <Text style={styles.copyright}>...</Text>
           </View>
         </ScrollView>
 
-        {panel !== null && (
+        {panel === "cart" && <View style={[styles.cartScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <View style={[styles.cartContent, !isMobile && styles.cartContentWide]}>
+            <View style={styles.cartScreenHeader}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja" onPress={() => { setPanel(null); setActive("home"); }} style={styles.cartBackButton}><ArrowLeft size={20} color="#d5a472" /><Text style={styles.cartBackText}>Continuar comprando</Text></Pressable>
+              <View style={styles.cartTitleRow}><ShoppingBag size={21} color="#d5a472" /><Text style={styles.cartScreenTitle}>Sua sacola</Text>{cartCount > 0 && <Text style={styles.cartCountPill}>{cartCount}</Text>}</View>
+            </View>
+
+            {cartRows.length === 0 ? <View style={styles.cartEmpty}>
+              <View style={styles.cartEmptyIcon}><ShoppingBag size={31} color="#c18d5e" /></View>
+              <Text style={styles.cartEmptyTitle}>Sua sacola está vazia</Text>
+              <Text style={styles.cartEmptyCopy}>Explore nossos produtos e adicione seus favoritos para continuar.</Text>
+              <Pressable onPress={() => { setPanel(null); setActive("home"); scrollRef.current?.scrollTo({ y: 0, animated: true }); }} style={styles.cartPrimaryButton}><Text style={styles.cartPrimaryButtonText}>Ver produtos</Text></Pressable>
+            </View> : <>
+              <ScrollView style={styles.cartItemsScroll} contentContainerStyle={styles.cartItemsContent} keyboardShouldPersistTaps="handled">
+                <View style={styles.cartSectionHeader}><Text style={styles.cartSectionTitle}>Itens do pedido</Text><Text style={styles.cartSectionMeta}>{cartCount} {cartCount === 1 ? "item" : "itens"}</Text></View>
+                {cartRows.map(({ name, quantity, product, unitPrice, lineTotal }) => <View style={styles.cartProductRow} key={name}>
+                  <View style={styles.cartProductImageWrap}>{product?.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.cartProductImage} resizeMode="cover" accessibilityLabel={`Foto de ${name}`} /> : <View style={styles.cartBottleFallback}><WineBottle tone={product?.tone} small /></View>}</View>
+                  <View style={styles.cartProductInfo}>
+                    <Text style={styles.cartProductName}>{name}</Text>
+                    {!!product?.label && <Text style={styles.cartProductLabel}>{product.label}</Text>}
+                    <Text style={styles.cartProductPrice}>{unitPrice === null ? "Preço a confirmar" : formatPrice(unitPrice)}</Text>
+                    {lineTotal !== null && quantity > 1 && <Text style={styles.cartLineTotal}>Total: {formatPrice(lineTotal)}</Text>}
+                    <View style={styles.cartQuantityControl}>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Diminuir quantidade de ${name}`} onPress={() => changeCartQuantity(name, -1)} style={styles.cartQuantityButton}><Minus size={15} color="#eee5da" /></Pressable>
+                      <Text style={styles.cartQuantity}>{quantity}</Text>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Aumentar quantidade de ${name}`} onPress={() => changeCartQuantity(name, 1)} style={styles.cartQuantityButton}><Plus size={15} color="#eee5da" /></Pressable>
+                    </View>
+                  </View>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Remover ${name} da sacola`} onPress={() => removeFromCart(name)} style={styles.cartDeleteButton}><Trash2 size={17} color="#b8a18c" /></Pressable>
+                </View>)}
+                <View style={styles.cartNotesBlock}><Text style={styles.cartNotesLabel}>Observações para a loja <Text style={styles.cartOptional}>(opcional)</Text></Text><TextInput value={orderNotes} onChangeText={setOrderNotes} placeholder="Alguma preferência para este pedido?" placeholderTextColor="#94877b" multiline style={styles.cartNotesInput} accessibilityLabel="Observações para a loja" /></View>
+              </ScrollView>
+
+              <View style={styles.cartSummary}>
+                <View style={styles.cartSummaryLine}><Text style={styles.cartSummaryLabel}>Subtotal</Text><Text style={styles.cartSummaryValue}>{formatPrice(cartSubtotal)}{hasUnpricedItems ? "*" : ""}</Text></View>
+                <View style={styles.cartSummaryLine}><Text style={styles.cartSummaryLabel}>Entrega</Text><Text style={styles.cartSummaryValueMuted}>A combinar</Text></View>
+                <View style={styles.cartTotalLine}><Text style={styles.cartTotalLabel}>{hasUnpricedItems ? "Subtotal parcial" : "Total dos produtos"}</Text><Text style={styles.cartTotalValue}>{formatPrice(cartSubtotal)}{hasUnpricedItems ? "*" : ""}</Text></View>
+                {hasUnpricedItems && <Text style={styles.cartPriceDisclaimer}>* O preço de um ou mais itens será confirmado pela loja.</Text>}
+                <Pressable onPress={sendOrderToWhatsApp} style={styles.cartPrimaryButton}><Text style={styles.cartPrimaryButtonText}>Enviar pedido pelo WhatsApp</Text></Pressable>
+                <Text style={styles.cartCheckoutHint}>Você combinará entrega e pagamento diretamente com a loja.</Text>
+              </View>
+            </>}
+          </View>
+        </View>}
+
+        {panel === "settings" && (
         <View style={panel === "settings" ? [styles.settingsScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }] : [styles.panelPosition, { bottom: Math.max(100, insets.bottom + 91) }]}>
             <View style={panel === "settings" ? styles.settingsScreenPanel : panelStyle}>
               {panel === "settings" ? (
@@ -377,12 +447,10 @@ function SiteScreen() {
                 </View>
               ) : (
                 <View style={styles.panelHeading}>
-                  <Text style={styles.panelTitle}>{panel === "search" ? "Buscar produtos" : "Seu carrinho"}</Text>
+                  <Text style={styles.panelTitle}>Seu carrinho</Text>
                   <Pressable accessibilityLabel="Fechar painel" onPress={() => setPanel(null)}><Text style={styles.panelClose}>×</Text></Pressable>
                 </View>
               )}
-              {panel === "search" && <><TextInput value={query} onChangeText={setQuery} placeholder="Digite um vinho..." placeholderTextColor="#9e9388" style={styles.searchInput} autoFocus /><Text style={styles.panelHint}>Espumante, fortificado ou aromatizado</Text></>}
-              {panel === "cart" && (cartCount === 0 ? <Text style={styles.panelHint}>Seu carrinho está vazio.</Text> : <View style={styles.cartList}>{Object.entries(cart).map(([name, quantity]) => <View style={styles.cartItem} key={name}><Text style={styles.cartItemName}>{name} × {quantity}</Text><Pressable onPress={() => removeFromCart(name)}><Text style={styles.removeItem}>Remover</Text></Pressable></View>)}<Pressable onPress={() => setPanel(null)} style={styles.primaryButton}><Text style={styles.buttonText}>Falar com a loja</Text></Pressable></View>)}
               {panel === "settings" && (productFormOpen ? (
                 <ScrollView style={[styles.adminScroll, styles.adminScrollFull]} contentContainerStyle={styles.adminForm} keyboardShouldPersistTaps="handled">
                   <Text style={styles.adminHint}>{editingProductId ? "Edite as informações do produto." : "Cadastre um produto para sua vitrine."}</Text>
@@ -396,8 +464,6 @@ function SiteScreen() {
                   <TextInput value={productDescription} onChangeText={setProductDescription} placeholder="Descreva o produto para a vitrine" placeholderTextColor="#9e9388" multiline style={[styles.searchInput, styles.descriptionInput]} />
                   <Text style={styles.settingLabel}>Foto do produto (URL)</Text>
                   <TextInput value={productImageUrl} onChangeText={setProductImageUrl} placeholder="https://..." placeholderTextColor="#9e9388" autoCapitalize="none" keyboardType="url" style={styles.searchInput} />
-                  <Text style={styles.settingLabel}>Cor da garrafa</Text>
-                  <View style={styles.toneOptions}>{[["ivory", "Clara"], ["gold", "Dourada"], ["olive", "Oliva"]].map(([tone, label]) => <Pressable key={tone} onPress={() => setProductTone(tone)} style={[styles.toneOption, productTone === tone && styles.toneOptionActive]}><Text style={styles.toneOptionText}>{label}</Text></Pressable>)}</View>
                   {!!productFormError && <Text style={styles.formError}>{productFormError}</Text>}
                   <View style={styles.adminActions}><Pressable onPress={() => setProductFormOpen(false)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cancelar</Text></Pressable><Pressable onPress={saveProduct} style={styles.primaryButton}><Text style={styles.buttonText}>{editingProductId ? "Salvar" : "Criar produto"}</Text></Pressable></View>
                 </ScrollView>
@@ -436,6 +502,10 @@ const styles = StyleSheet.create({
   pageMobile: { width: "100%" },
   header: { height: 72, paddingHorizontal: 28, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#49372a", flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#0d0b09" },
   headerMobile: { height: 60, paddingHorizontal: 18 },
+  expandedSearch: { minHeight: 64, paddingHorizontal: 28, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#15100c", borderBottomWidth: 1, borderBottomColor: "#49372a" },
+  expandedSearchMobile: { minHeight: 58, paddingHorizontal: 18, gap: 10 },
+  expandedSearchInput: { flex: 1, minWidth: 0, height: 42, paddingHorizontal: 2, color: "#fff", fontSize: 14, backgroundColor: "transparent", outlineStyle: "none" } as any,
+  expandedSearchClose: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 20, backgroundColor: "#211912" },
   brand: { color: "#f3f1ef", fontSize: 27, fontWeight: "700", letterSpacing: -1 },
   brandMobile: { fontSize: 24 },
   brandLockup: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -469,6 +539,7 @@ const styles = StyleSheet.create({
   labelOlive: { backgroundColor: "#e2ddc7" },
   productsSection: { paddingHorizontal: 34, paddingTop: 48, paddingBottom: 52, backgroundColor: "#100d0a" },
   productsSectionMobile: { paddingHorizontal: 18, paddingTop: 36, paddingBottom: 38 },
+  emptyCatalog: { paddingVertical: 24, color: "#bcb8b5", fontSize: 12, lineHeight: 18, textAlign: "center" },
   sectionHeadingLine: { flexDirection: "row", alignItems: "center", marginBottom: 25 },
   sectionHeadingLineMobile: { alignItems: "center", flexWrap: "wrap", rowGap: 10, marginBottom: 20 },
   sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 14 },
@@ -550,6 +621,53 @@ const styles = StyleSheet.create({
   social: { color: "#f1e6e3", fontSize: 16, marginTop: 4 },
   copyright: { color: "#cbb7a2", paddingVertical: 10, textAlign: "center", borderTopWidth: 1, borderTopColor: "#61452f", backgroundColor: "#2c1b12", fontSize: 9 },
   panelPosition: { position: "absolute", bottom: 100, left: 16, right: 16, alignItems: "center", zIndex: 8 },
+  cartScreen: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 20, alignItems: "stretch", paddingHorizontal: 18, backgroundColor: "#0d0b09" },
+  cartContent: { flex: 1, width: "100%", alignSelf: "center" },
+  cartContentWide: { maxWidth: 860 },
+  cartScreenHeader: { minHeight: 76, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderBottomWidth: 1, borderBottomColor: "#49372a" },
+  cartBackButton: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingRight: 6 },
+  cartBackText: { color: "#d5a472", fontSize: 12, fontWeight: "600" },
+  cartTitleRow: { flexDirection: "row", alignItems: "center", gap: 9 },
+  cartScreenTitle: { color: "#f3f1ef", fontSize: 21, fontWeight: "700" },
+  cartCountPill: { minWidth: 23, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 12, overflow: "hidden", color: "#21170f", backgroundColor: "#d5a472", textAlign: "center", fontSize: 11, fontWeight: "700" },
+  cartEmpty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, paddingBottom: 45 },
+  cartEmptyIcon: { width: 68, height: 68, alignItems: "center", justifyContent: "center", marginBottom: 20, borderRadius: 34, backgroundColor: "#211912" },
+  cartEmptyTitle: { color: "#f3f1ef", fontSize: 21, fontWeight: "700", textAlign: "center" },
+  cartEmptyCopy: { maxWidth: 330, marginTop: 9, marginBottom: 22, color: "#bcb8b5", fontSize: 13, lineHeight: 20, textAlign: "center" },
+  cartItemsScroll: { flex: 1 },
+  cartItemsContent: { paddingBottom: 18 },
+  cartSectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 22, paddingBottom: 5 },
+  cartSectionTitle: { color: "#f3f1ef", fontSize: 16, fontWeight: "700" },
+  cartSectionMeta: { color: "#bcb8b5", fontSize: 12 },
+  cartProductRow: { minHeight: 130, flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: "#33271e" },
+  cartProductImageWrap: { width: 76, height: 92, alignItems: "center", justifyContent: "center", overflow: "hidden", borderRadius: 8, backgroundColor: "#18120e" },
+  cartProductImage: { width: "100%", height: "100%" },
+  cartBottleFallback: { height: 82, overflow: "hidden", alignItems: "center", justifyContent: "center", transform: [{ scale: .48 }] },
+  cartProductInfo: { flex: 1, minWidth: 0, gap: 4, alignItems: "flex-start" },
+  cartProductName: { color: "#f3f1ef", fontSize: 14, fontWeight: "700" },
+  cartProductLabel: { color: "#a99a8b", fontSize: 9, letterSpacing: 1 },
+  cartProductPrice: { color: "#d5a472", fontSize: 13, fontWeight: "700" },
+  cartLineTotal: { color: "#bcb8b5", fontSize: 10 },
+  cartQuantityControl: { height: 34, flexDirection: "row", alignItems: "center", gap: 12, marginTop: 4, paddingHorizontal: 5, borderWidth: 1, borderColor: "#49372a", borderRadius: 18 },
+  cartQuantityButton: { width: 28, height: 30, alignItems: "center", justifyContent: "center" },
+  cartQuantity: { minWidth: 15, color: "#f3f1ef", textAlign: "center", fontSize: 12, fontWeight: "600" },
+  cartDeleteButton: { width: 38, height: 40, alignItems: "center", justifyContent: "center" },
+  cartNotesBlock: { gap: 9, marginTop: 22 },
+  cartNotesLabel: { color: "#e9e0d6", fontSize: 12, fontWeight: "600" },
+  cartOptional: { color: "#9e9388", fontSize: 10, fontWeight: "400" },
+  cartNotesInput: { minHeight: 72, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: "#49372a", borderRadius: 8, color: "#fff", backgroundColor: "#15100c", fontSize: 12, textAlignVertical: "top" },
+  cartSummary: { gap: 10, paddingTop: 15, paddingBottom: 11, borderTopWidth: 1, borderTopColor: "#49372a", backgroundColor: "#0d0b09" },
+  cartSummaryLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  cartSummaryLabel: { color: "#bcb8b5", fontSize: 12 },
+  cartSummaryValue: { color: "#f3f1ef", fontSize: 12, fontWeight: "600" },
+  cartSummaryValueMuted: { color: "#d5a472", fontSize: 11 },
+  cartTotalLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 9, borderTopWidth: 1, borderTopColor: "#33271e" },
+  cartTotalLabel: { color: "#f3f1ef", fontSize: 14, fontWeight: "700" },
+  cartTotalValue: { color: "#d5a472", fontSize: 18, fontWeight: "800" },
+  cartPriceDisclaimer: { color: "#cbb7a2", fontSize: 10, lineHeight: 15 },
+  cartPrimaryButton: { width: "100%", minHeight: 48, alignItems: "center", justifyContent: "center", paddingHorizontal: 18, paddingVertical: 13, borderRadius: 6, backgroundColor: "#765036" },
+  cartPrimaryButtonText: { color: "#fff", fontSize: 13, fontWeight: "700", textAlign: "center" },
+  cartCheckoutHint: { color: "#9e9388", fontSize: 10, lineHeight: 14, textAlign: "center" },
   settingsScreen: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 20, alignItems: "stretch", paddingHorizontal: 22, backgroundColor: "#0d0b09" },
   settingsScreenPanel: { flex: 1, width: "100%", maxWidth: 980, alignSelf: "center", paddingTop: 18, paddingBottom: 16 },
   settingsScreenHeader: { minHeight: 74, flexDirection: "row", alignItems: "center", gap: 18, paddingBottom: 17, marginBottom: 18, borderBottomWidth: 1, borderBottomColor: "#49372a" },
@@ -592,10 +710,6 @@ const styles = StyleSheet.create({
   adminDisabled: { opacity: 0.4 },
   adminButtonDisabled: { opacity: 0.45 },
   createProductButton: { marginTop: 10 },
-  toneOptions: { flexDirection: "row", gap: 8 },
-  toneOption: { paddingHorizontal: 11, paddingVertical: 8, borderWidth: 1, borderColor: "#61482f", borderRadius: 7 },
-  toneOptionActive: { backgroundColor: "#765036", borderColor: "#d5a472" },
-  toneOptionText: { color: "#eee5da", fontSize: 10 },
   adminActions: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 8 },
   secondaryButton: { paddingHorizontal: 13, paddingVertical: 10, borderWidth: 1, borderColor: "#61482f", borderRadius: 2 },
   secondaryButtonText: { color: "#e3d6c8", fontSize: 11 },
