@@ -443,9 +443,12 @@ function SiteScreen() {
             </View>
 
             <View style={[styles.productsSection, isMobile && styles.productsSectionMobile]}>
-              <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>NOSSOS PRODUTOS</SectionTitle><View style={[styles.arrows, isMobile && styles.arrowsMobile]}><Pressable accessibilityRole="button" accessibilityLabel="Produto anterior" onPress={() => scrollProducts(-1)} style={[styles.arrow, isMobile && styles.arrowMobile]}><ChevronLeft size={15} color="#f2ece5" strokeWidth={2} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Próximo produto" onPress={() => scrollProducts(1)} style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}><ChevronRight size={15} color="#f2ece5" strokeWidth={2} /></Pressable></View></View>
-              <View style={[styles.catalogFilters, isMobile && styles.catalogFiltersMobile]} accessibilityRole="radiogroup" accessibilityLabel="Filtrar produtos por categoria">
-                {productCategoryFilters.map((filter) => <Pressable key={filter.id} accessibilityRole="radio" accessibilityState={{ checked: categoryFilter === filter.id }} onPress={() => setCategoryFilter(filter.id)} style={[styles.catalogFilterButton, categoryFilter === filter.id && styles.catalogFilterButtonActive]}><Text style={[styles.catalogFilterLabel, categoryFilter === filter.id && styles.catalogFilterLabelActive]}>{filter.label}</Text></Pressable>)}
+              <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>NOSSOS PRODUTOS</SectionTitle></View>
+              <View style={[styles.catalogControls, isMobile && styles.catalogControlsMobile]}>
+                <View style={[styles.catalogFilters, isMobile && styles.catalogFiltersMobile]} accessibilityRole="radiogroup" accessibilityLabel="Filtrar produtos por categoria">
+                  {productCategoryFilters.map((filter) => <Pressable key={filter.id} accessibilityRole="radio" accessibilityState={{ checked: categoryFilter === filter.id }} onPress={() => setCategoryFilter(filter.id)} style={[styles.catalogFilterButton, categoryFilter === filter.id && styles.catalogFilterButtonActive]}><Text style={[styles.catalogFilterLabel, categoryFilter === filter.id && styles.catalogFilterLabelActive]}>{filter.label}</Text></Pressable>)}
+                </View>
+                <View style={[styles.arrows, styles.catalogArrows, isMobile && styles.arrowsMobile]}><Pressable accessibilityRole="button" accessibilityLabel="Produto anterior" onPress={() => scrollProducts(-1)} style={[styles.arrow, isMobile && styles.arrowMobile]}><ChevronLeft size={15} color="#f2ece5" strokeWidth={2} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Próximo produto" onPress={() => scrollProducts(1)} style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}><ChevronRight size={15} color="#f2ece5" strokeWidth={2} /></Pressable></View>
               </View>
               <ScrollView ref={productsScrollRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.productGrid, isMobile && styles.productGridMobile]} onLayout={(event) => { productViewportWidth.current = event.nativeEvent.layout.width; }} onContentSizeChange={(width) => { productScrollWidth.current = width; }} onScroll={(event) => { productScrollPosition.current = event.nativeEvent.contentOffset.x; }} scrollEventThrottle={16}>
                 {productCards}
@@ -641,8 +644,10 @@ const styles = StyleSheet.create({
   emptyCatalog: { paddingVertical: 24, color: "#bcb8b5", fontSize: 12, lineHeight: 18, textAlign: "center" },
   sectionHeadingLine: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
   sectionHeadingLineMobile: { alignItems: "center", flexWrap: "wrap", rowGap: 10, marginBottom: 20 },
-  catalogFilters: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 18, padding: 3, borderWidth: 1, borderColor: "#49372a", borderRadius: 24, backgroundColor: "#15100c" },
-  catalogFiltersMobile: { marginBottom: 15 },
+  catalogControls: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 },
+  catalogControlsMobile: { marginBottom: 15 },
+  catalogFilters: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4, padding: 3, borderWidth: 1, borderColor: "#49372a", borderRadius: 24, backgroundColor: "#15100c" },
+  catalogFiltersMobile: { marginBottom: 0 },
   catalogFilterButton: { minHeight: 34, justifyContent: "center", paddingHorizontal: 14, borderRadius: 19 },
   catalogFilterButtonActive: { backgroundColor: "#765036" },
   catalogFilterLabel: { color: "#c5b8aa", fontSize: 11, fontWeight: "600" },
@@ -654,6 +659,7 @@ const styles = StyleSheet.create({
   sectionTitleMobile: { fontSize: 18, lineHeight: 23, flexShrink: 1 },
   arrows: { marginLeft: "auto", flexDirection: "row", gap: 8 },
   arrowsMobile: { marginLeft: "auto", gap: 6 },
+  catalogArrows: { marginLeft: 12 },
   arrow: { width: 31, height: 31, alignItems: "center", justifyContent: "center", overflow: "hidden", borderWidth: 1, borderColor: "#8f7965", borderRadius: 18 },
   arrowMobile: { width: 27, height: 27 },
   arrowActive: { borderColor: "#805739", backgroundColor: "#805739" },
