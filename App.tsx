@@ -12,34 +12,21 @@ import {
   View,
   useWindowDimensions,
   type ViewStyle,
-  type ImageSourcePropType,
 } from "react-native";
 import { GlassView } from "expo-glass-effect";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { House, Search, ShoppingCart, Settings } from "lucide-react-native";
 
 type PanelName = "search" | "cart" | "settings" | null;
-type Product = { id: string; name: string; label: string; price: string; description: string; tone: string; featured: boolean; imageUrl?: string };
+type Product = { id: string; name: string; label: string; price: string; description: string; tone: string; imageUrl?: string };
 
 const initialProducts: Product[] = [
-  { id: "sparkling-wine", name: "Sparkling wine", label: "SPARKLING WINE", price: "R$ 89,90", description: "Espumante selecionado para brindar bons momentos.", tone: "gold", featured: true },
-  { id: "fortified-wine", name: "Fortified wine", label: "FORTIFIED WINE", price: "R$ 119,90", description: "Vinho encorpado, com aroma marcante e final elegante.", tone: "ivory", featured: true },
-  { id: "aromatized-wine", name: "Aromatized wine", label: "AROMATIZED WINE", price: "R$ 69,90", description: "Uma bebida aromática para apreciar em boa companhia.", tone: "olive", featured: true },
+  { id: "sparkling-wine", name: "Sparkling wine", label: "SPARKLING WINE", price: "R$ 89,90", description: "Espumante selecionado para brindar bons momentos.", tone: "gold" },
+  { id: "fortified-wine", name: "Fortified wine", label: "FORTIFIED WINE", price: "R$ 119,90", description: "Vinho encorpado, com aroma marcante e final elegante.", tone: "ivory" },
+  { id: "aromatized-wine", name: "Aromatized wine", label: "AROMATIZED WINE", price: "R$ 69,90", description: "Uma bebida aromática para apreciar em boa companhia.", tone: "olive" },
 ];
 
-const featuredProductImages: Record<string, ImageSourcePropType> = {
-  "sparkling-wine": require("./assets/featured-sparkling-wine.png"),
-  "fortified-wine": require("./assets/featured-fortified-wine.png"),
-  "aromatized-wine": require("./assets/featured-red-wine.png"),
-};
-
-function getFeaturedProductImage(product: Product): ImageSourcePropType {
-  if (product.imageUrl) return { uri: product.imageUrl };
-  if (featuredProductImages[product.id]) return featuredProductImages[product.id];
-  if (product.tone === "gold") return featuredProductImages["sparkling-wine"];
-  if (product.tone === "olive") return featuredProductImages["fortified-wine"];
-  return featuredProductImages["aromatized-wine"];
-}
+const HERO_IMAGE_URL = "https://r2.fivemanage.com/vLUsF9vzqBOo7DSFHERFX/CestadeVinhosMattoChals.png";
 
 const navItems = [
   { id: "home", label: "Home", Icon: House },
@@ -93,7 +80,6 @@ function SiteScreen() {
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [products, setProducts] = useState(initialProducts);
-  const [heroCarouselIndex, setHeroCarouselIndex] = useState(0);
   const [databaseMode, setDatabaseMode] = useState<"checking" | "local" | "connected">("checking");
   const [adminTokenInput, setAdminTokenInput] = useState("");
   const [adminToken, setAdminToken] = useState("");
@@ -105,7 +91,6 @@ function SiteScreen() {
   const [productLabel, setProductLabel] = useState("");
   const [productPrice, setProductPrice] = useState("");
   const [productDescription, setProductDescription] = useState("");
-  const [productFeatured, setProductFeatured] = useState(false);
   const [productTone, setProductTone] = useState("ivory");
   const [productImageUrl, setProductImageUrl] = useState("");
   const [productFormError, setProductFormError] = useState("");
@@ -126,7 +111,6 @@ function SiteScreen() {
               ...product,
               price: product.price && product.price !== "..." ? product.price : "Consulte",
               description: product.description || "Produto selecionado pela Matto Chalés.",
-              featured: product.featured ?? true,
             })));
             setDatabaseMode("connected");
           }
@@ -141,23 +125,11 @@ function SiteScreen() {
     return () => { cancelled = true; };
   }, []);
 
-  const featuredProducts = useMemo(() => products.filter((product) => product.featured), [products]);
-  useEffect(() => {
-    setHeroCarouselIndex((index) => featuredProducts.length ? Math.min(index, featuredProducts.length - 1) : 0);
-  }, [featuredProducts.length]);
-
   const shownProducts = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
     return products.filter((product) => product.name.toLocaleLowerCase().includes(normalized));
   }, [query]);
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
-  const featuredProduct = featuredProducts[heroCarouselIndex];
-
-  function moveHeroCarousel(direction: -1 | 1) {
-    if (!featuredProducts.length) return;
-    const nextIndex = (heroCarouselIndex + direction + featuredProducts.length) % featuredProducts.length;
-    setHeroCarouselIndex(nextIndex);
-  }
 
   function addToCart(name: string) {
     setCart((current) => ({ ...current, [name]: (current[name] ?? 0) + 1 }));
@@ -179,7 +151,6 @@ function SiteScreen() {
     setProductLabel(product?.label ?? "");
     setProductPrice(product?.price === "..." ? "" : product?.price ?? "");
     setProductDescription(product?.description ?? "");
-    setProductFeatured(product?.featured ?? false);
     setProductTone(product?.tone ?? "ivory");
     setProductImageUrl(product?.imageUrl ?? "");
     setProductFormError("");
@@ -222,7 +193,6 @@ function SiteScreen() {
       label,
       price: productPrice.trim(),
       description: productDescription.trim() || "Produto selecionado pela Matto Chalés.",
-      featured: productFeatured,
       tone: productTone,
       ...(productImageUrl.trim() ? { imageUrl: productImageUrl.trim() } : {}),
     };
@@ -344,33 +314,10 @@ function SiteScreen() {
                 <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile, isSmallMobile && styles.heroTitleSmall]}>SEJA BEM-VINDO{"\n"}À NOSSA ADEGA</Text>
                 <Text style={styles.heroTagline}>AS MELHORES BEBIDAS ESTÃO AQUI</Text>
               </View>
-              <View style={[styles.heroBottle, isMobile && styles.heroBottleMobile]}>
-                {featuredProduct ? <>
-                  <View style={styles.heroPhotoCarousel}>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Produto anterior" onPress={() => moveHeroCarousel(-1)} style={styles.heroCarouselArrow}><Text style={styles.heroCarouselArrowText}>‹</Text></Pressable>
-                    <View style={[styles.heroFeaturedFrame, isMobile && styles.heroFeaturedFrameMobile]}>
-                      <Image key={featuredProduct.id} source={getFeaturedProductImage(featuredProduct)} style={styles.heroFeaturedImage} resizeMode="contain" accessibilityLabel={featuredProduct.label} />
-                    </View>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Próximo produto" onPress={() => moveHeroCarousel(1)} style={styles.heroCarouselArrow}><Text style={styles.heroCarouselArrowText}>›</Text></Pressable>
-                  </View>
-                  <Text numberOfLines={1} style={styles.heroFeaturedName}>{featuredProduct.label}</Text>
-                  <View style={styles.heroCarouselDots}>
-                    {featuredProducts.map((product, index) => <Pressable key={product.id} accessibilityRole="button" accessibilityLabel={`Selecionar ${product.label}`} accessibilityState={{ selected: index === heroCarouselIndex }} onPress={() => setHeroCarouselIndex(index)} style={styles.heroDotHitArea}><View style={[styles.heroDot, index === heroCarouselIndex && styles.heroDotActive]} /></Pressable>)}
-                  </View>
-                </> : <Text style={styles.noResults}>Nenhum produto cadastrado.</Text>}
-              </View>
-              <View style={[styles.heroAside, isMobile && styles.heroAsideMobile]}>
-                {isMobile ? (
-                  <>
-                    <View style={styles.heroDescriptionMobile}><View style={styles.shortRule} /><BodyCopy style={styles.smallCopy}>{featuredProduct?.description ?? "Escolha um produto em destaque nas Configurações."}</BodyCopy></View>
-                    <View style={styles.heroOfferMobile}>
-                      <Text style={[styles.price, styles.priceMobile]}>{featuredProduct?.price ?? ""}</Text>
-                      <Pressable disabled={!featuredProduct} onPress={() => featuredProduct && addToCart(featuredProduct.name)} style={[styles.primaryButton, styles.smallButton, !featuredProduct && styles.adminButtonDisabled]}><Text style={styles.buttonText}>Adicionar à Sacola</Text></Pressable>
-                    </View>
-                  </>
-                ) : (
-                  <><View style={styles.shortRule} /><BodyCopy style={styles.smallCopy}>{featuredProduct?.description ?? "Escolha um produto em destaque nas Configurações."}</BodyCopy><Text style={styles.price}>{featuredProduct?.price ?? ""}</Text><Pressable disabled={!featuredProduct} onPress={() => featuredProduct && addToCart(featuredProduct.name)} style={[styles.primaryButton, styles.smallButton, !featuredProduct && styles.adminButtonDisabled]}><Text style={styles.buttonText}>Adicionar à Sacola</Text></Pressable></>
-                )}
+              <View style={[styles.heroStaticPhotoArea, isMobile && styles.heroStaticPhotoAreaMobile]}>
+                <View style={[styles.heroStaticPhotoFrame, isMobile && styles.heroStaticPhotoFrameMobile]}>
+                  <Image source={{ uri: HERO_IMAGE_URL }} style={styles.heroStaticPhoto} resizeMode="contain" accessibilityLabel="Cesta de vinhos Matto Chalés" />
+                </View>
               </View>
             </View>
 
@@ -453,7 +400,6 @@ function SiteScreen() {
                   <TextInput value={productImageUrl} onChangeText={setProductImageUrl} placeholder="https://..." placeholderTextColor="#9e9388" autoCapitalize="none" keyboardType="url" style={styles.searchInput} />
                   <Text style={styles.settingLabel}>Cor da garrafa</Text>
                   <View style={styles.toneOptions}>{[["ivory", "Clara"], ["gold", "Dourada"], ["olive", "Oliva"]].map(([tone, label]) => <Pressable key={tone} onPress={() => setProductTone(tone)} style={[styles.toneOption, productTone === tone && styles.toneOptionActive]}><Text style={styles.toneOptionText}>{label}</Text></Pressable>)}</View>
-                  <Pressable accessibilityRole="switch" accessibilityState={{ checked: productFeatured }} onPress={() => setProductFeatured((value) => !value)} style={[styles.featuredToggle, productFeatured && styles.featuredToggleActive]}><View style={[styles.featuredToggleMark, productFeatured && styles.featuredToggleMarkActive]} /><View style={styles.featuredToggleCopy}><Text style={styles.featuredToggleTitle}>Exibir em produtos em destaque</Text><Text style={styles.featuredToggleHint}>Mostra este produto no carrossel principal.</Text></View></Pressable>
                   {!!productFormError && <Text style={styles.formError}>{productFormError}</Text>}
                   <View style={styles.adminActions}><Pressable onPress={() => setProductFormOpen(false)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cancelar</Text></Pressable><Pressable onPress={saveProduct} style={styles.primaryButton}><Text style={styles.buttonText}>{editingProductId ? "Salvar" : "Criar produto"}</Text></Pressable></View>
                 </ScrollView>
@@ -462,8 +408,7 @@ function SiteScreen() {
                   <Text style={styles.adminHint}>{databaseMode === "checking" ? "Verificando conexão…" : databaseMode === "connected" ? "Catálogo conectado ao MongoDB." : "Modo local: as alterações ficam apenas nesta sessão até configurar o MongoDB."}</Text>
                   {databaseMode === "connected" && !adminUnlocked && <View style={styles.adminAccess}><TextInput value={adminTokenInput} onChangeText={setAdminTokenInput} placeholder="Chave de administração" placeholderTextColor="#9e9388" secureTextEntry style={styles.searchInput} /><Pressable onPress={unlockProductManager} style={styles.primaryButton}><Text style={styles.buttonText}>Desbloquear edição</Text></Pressable>{!!adminMessage && <Text style={styles.adminFeedback}>{adminMessage}</Text>}</View>}
                   {!!adminMessage && (databaseMode !== "connected" || adminUnlocked) && <Text style={styles.adminFeedback}>{adminMessage}</Text>}
-                  <View style={styles.adminSection}><Text style={styles.adminSectionTitle}>Produtos em destaque</Text><Text style={styles.adminSectionHint}>Estes produtos aparecem no carrossel principal.</Text>{renderAdminProductRows(products.filter((product) => product.featured))}</View>
-                  <View style={styles.adminSection}><Text style={styles.adminSectionTitle}>Catálogo de produtos</Text><Text style={styles.adminSectionHint}>Produtos disponíveis na lista da loja que não estão destacados.</Text>{renderAdminProductRows(products.filter((product) => !product.featured))}</View>
+                  <View style={styles.adminSection}><Text style={styles.adminSectionTitle}>Catálogo de produtos</Text><Text style={styles.adminSectionHint}>Gerencie os produtos disponíveis na loja.</Text>{renderAdminProductRows(products)}</View>
                   <Pressable disabled={!canManageProducts} onPress={() => openProductForm()} style={[styles.primaryButton, styles.createProductButton, !canManageProducts && styles.adminButtonDisabled]}><Text style={styles.buttonText}>+ Novo produto</Text></Pressable>
                 </ScrollView>
               ))}
@@ -507,24 +452,11 @@ const styles = StyleSheet.create({
   heroTitleMobile: { fontSize: 43, lineHeight: 47, letterSpacing: -1.5 },
   heroTitleSmall: { fontSize: 37, lineHeight: 41 },
   heroTagline: { color: "#d3cecb", marginTop: 16, marginBottom: 14, fontSize: 10, letterSpacing: 2, fontWeight: "600" },
-  heroPhotoCarousel: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
-  heroCarouselArrow: { width: 30, height: 30, flexShrink: 0, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#8f7965", borderRadius: 16, backgroundColor: "rgba(32, 23, 15, 0.84)" },
-  heroCarouselArrowText: { color: "#f2ece5", fontSize: 22, lineHeight: 25, marginTop: -2 },
-  heroFeaturedFrame: { flex: 1, height: 350, minWidth: 0, maxWidth: 234, padding: 5, overflow: "hidden", borderWidth: 1, borderColor: "rgba(213, 164, 114, 0.28)", borderRadius: 14, backgroundColor: "rgba(255, 255, 255, 0.025)" },
-  heroFeaturedFrameMobile: { height: 260, maxWidth: 174, padding: 4 },
-  heroFeaturedImage: { flex: 1, width: "100%", minWidth: 0, backgroundColor: "#100d0a", borderRadius: 8 },
-  heroFeaturedName: { color: "#d5a472", fontSize: 10, fontWeight: "700", letterSpacing: 1.1, textAlign: "center", marginTop: 3 },
-  heroCarouselDots: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3, marginTop: 2 },
-  heroDotHitArea: { minWidth: 22, minHeight: 24, alignItems: "center", justifyContent: "center" },
-  heroDot: { width: 6, height: 6, borderRadius: 4, backgroundColor: "#806952" },
-  heroDotActive: { width: 17, backgroundColor: "#d5a472" },
-  heroBottle: { flex: 1.05, height: 405, alignItems: "center", justifyContent: "center", gap: 2 },
-  heroBottleMobile: { flex: 0, flexBasis: "auto", flexShrink: 0, width: "100%", height: 310, marginTop: 7 },
-  heroAside: { width: 175, zIndex: 2 },
-  heroAsideMobile: { width: "100%", marginTop: 12, flexDirection: "column", alignItems: "stretch", gap: 12 },
-  heroDescriptionMobile: { flexDirection: "row", alignItems: "center", gap: 10 },
-  heroOfferMobile: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  priceMobile: { marginTop: 0, marginBottom: 0 },
+  heroStaticPhotoArea: { flex: 1.05, height: 370, minWidth: 0, alignItems: "center", justifyContent: "center" },
+  heroStaticPhotoAreaMobile: { flex: 0, width: "100%", height: 290, marginTop: 14 },
+  heroStaticPhotoFrame: { width: "100%", height: 350, maxWidth: 420, padding: 6, overflow: "hidden", borderWidth: 1, borderColor: "rgba(213, 164, 114, 0.28)", borderRadius: 14, backgroundColor: "rgba(255, 255, 255, 0.025)" },
+  heroStaticPhotoFrameMobile: { height: 280, maxWidth: 360, padding: 4 },
+  heroStaticPhoto: { width: "100%", height: "100%", backgroundColor: "#100d0a", borderRadius: 8 },
   shortRule: { width: 50, height: 1, backgroundColor: "#ddd", marginBottom: 12 },
   bodyCopy: { color: "#bcb8b5", fontSize: 12, lineHeight: 20 },
   smallCopy: { fontSize: 10, lineHeight: 16 },
@@ -668,13 +600,6 @@ const styles = StyleSheet.create({
   toneOption: { paddingHorizontal: 11, paddingVertical: 8, borderWidth: 1, borderColor: "#61482f", borderRadius: 7 },
   toneOptionActive: { backgroundColor: "#765036", borderColor: "#d5a472" },
   toneOptionText: { color: "#eee5da", fontSize: 10 },
-  featuredToggle: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 4, padding: 11, borderWidth: 1, borderColor: "#61482f", borderRadius: 8, backgroundColor: "#15100c" },
-  featuredToggleActive: { borderColor: "#d5a472", backgroundColor: "#21170f" },
-  featuredToggleMark: { width: 18, height: 18, borderWidth: 1, borderColor: "#8d7966", borderRadius: 5 },
-  featuredToggleMarkActive: { borderColor: "#d5a472", backgroundColor: "#805739" },
-  featuredToggleCopy: { flex: 1, gap: 3 },
-  featuredToggleTitle: { color: "#f2ece5", fontSize: 11, fontWeight: "600" },
-  featuredToggleHint: { color: "#bcb8b5", fontSize: 9 },
   adminActions: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 8 },
   secondaryButton: { paddingHorizontal: 13, paddingVertical: 10, borderWidth: 1, borderColor: "#61482f", borderRadius: 2 },
   secondaryButtonText: { color: "#e3d6c8", fontSize: 11 },

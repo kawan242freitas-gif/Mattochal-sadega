@@ -9,13 +9,12 @@ type ProductDocument = {
   price: string;
   description: string;
   tone: string;
-  featured: boolean;
   imageUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 };
 
-type ProductInput = Pick<ProductDocument, "name" | "label" | "price" | "description" | "tone" | "featured" | "imageUrl">;
+type ProductInput = Pick<ProductDocument, "name" | "label" | "price" | "description" | "tone" | "imageUrl">;
 
 function toProduct(document: WithId<ProductDocument>) {
   return {
@@ -25,7 +24,6 @@ function toProduct(document: WithId<ProductDocument>) {
     price: document.price,
     description: document.description || "Produto selecionado pela Matto Chalés.",
     tone: document.tone,
-    featured: document.featured ?? true,
     ...(document.imageUrl ? { imageUrl: document.imageUrl } : {}),
   };
 }
@@ -48,9 +46,8 @@ function parseProduct(body: unknown): ProductInput | null {
   const description = typeof value.description === "string" && value.description.trim()
     ? value.description.trim().slice(0, 300)
     : "Produto selecionado pela Matto Chalés.";
-  const featured = typeof value.featured === "boolean" ? value.featured : false;
 
-  return { name, label, price, description, tone, featured, ...(imageUrl ? { imageUrl } : {}) };
+  return { name, label, price, description, tone, ...(imageUrl ? { imageUrl } : {}) };
 }
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
@@ -96,7 +93,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
       const product = parseProduct(request.body);
       if (!product) return response.status(400).json({ error: "INVALID_PRODUCT" });
 
-      const result = await collection.updateOne({ _id: objectId }, { $set: { ...product, updatedAt: new Date() } });
+      const result = await collection.updateOne({ _id: objectId }, { $set: { ...product, updatedAt: new Date() }, $unset: { featured: "" } });
       if (result.matchedCount === 0) return response.status(404).json({ error: "PRODUCT_NOT_FOUND" });
       const updated = await collection.findOne({ _id: objectId });
       return response.status(200).json(updated ? toProduct(updated) : null);
