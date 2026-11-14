@@ -440,7 +440,6 @@ function SiteScreen() {
 
               <View style={styles.cartSummary}>
                 <View style={styles.cartSummaryLine}><Text style={styles.cartSummaryLabel}>Subtotal</Text><Text style={styles.cartSummaryValue}>{formatPrice(cartSubtotal)}{hasUnpricedItems ? "*" : ""}</Text></View>
-                <View style={styles.cartSummaryLine}><Text style={styles.cartSummaryLabel}>Entrega</Text><Text style={styles.cartSummaryValueMuted}>A combinar</Text></View>
                 <View style={styles.cartTotalLine}><Text style={styles.cartTotalLabel}>{hasUnpricedItems ? "Subtotal parcial" : "Total dos produtos"}</Text><Text style={styles.cartTotalValue}>{formatPrice(cartSubtotal)}{hasUnpricedItems ? "*" : ""}</Text></View>
                 {hasUnpricedItems && <Text style={styles.cartPriceDisclaimer}>* O preço de um ou mais itens será confirmado pela loja.</Text>}
                 <Pressable onPress={sendOrderToWhatsApp} style={styles.cartPrimaryButton}><Text style={styles.cartPrimaryButtonText}>Enviar pedido pelo WhatsApp</Text></Pressable>
@@ -674,7 +673,6 @@ const styles = StyleSheet.create({
   cartSummaryLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   cartSummaryLabel: { color: "#bcb8b5", fontSize: 12 },
   cartSummaryValue: { color: "#f3f1ef", fontSize: 12, fontWeight: "600" },
-  cartSummaryValueMuted: { color: "#d5a472", fontSize: 11 },
   cartTotalLine: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingTop: 9, borderTopWidth: 1, borderTopColor: "#33271e" },
   cartTotalLabel: { color: "#f3f1ef", fontSize: 14, fontWeight: "700" },
   cartTotalValue: { color: "#d5a472", fontSize: 18, fontWeight: "800" },
