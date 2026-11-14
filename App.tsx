@@ -100,6 +100,8 @@ function SiteScreen() {
   const [panel, setPanel] = useState<PanelName>(null);
   const [active, setActive] = useState("home");
   const [query, setQuery] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [detailQuantity, setDetailQuantity] = useState(1);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [orderNotes, setOrderNotes] = useState("");
   const [cartHydrated, setCartHydrated] = useState(false);
@@ -221,8 +223,13 @@ function SiteScreen() {
   const cartSubtotal = cartRows.reduce((sum, item) => sum + (item.lineTotal ?? 0), 0);
   const hasUnpricedItems = cartRows.some((item) => item.lineTotal === null);
 
-  function addToCart(name: string) {
-    setCart((current) => ({ ...current, [name]: (current[name] ?? 0) + 1 }));
+  function addToCart(name: string, quantity = 1) {
+    setCart((current) => ({ ...current, [name]: (current[name] ?? 0) + quantity }));
+  }
+
+  function openProductDetails(product: Product) {
+    setSelectedProduct(product);
+    setDetailQuantity(1);
   }
 
   function removeFromCart(name: string) {
@@ -383,11 +390,13 @@ function SiteScreen() {
   const canManageProducts = databaseMode === "local" || (databaseMode === "connected" && adminUnlocked);
   const productCards = shownProducts.map((product) => (
     <View style={[styles.productCard, { width: productCardWidth }, isMobile && styles.productCardMobile]} key={product.id}>
-      <Text numberOfLines={2} style={styles.cardTitle}>{product.label}</Text>
-      <View style={[styles.productBottle, isMobile && styles.productBottleMobile]}>{product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.productPhoto} resizeMode="contain" accessibilityLabel={`Foto de ${product.name}`} /> : <WineBottle tone={product.tone} small />}</View>
-      <BodyCopy numberOfLines={isMobile ? 4 : 5} style={[styles.productDescription, isMobile && styles.productDescriptionMobile]}>{product.description}</BodyCopy>
-      <Text style={styles.stars}>★★★★★</Text>
-      <View style={styles.cardBottom}><Text style={styles.cardPrice}>{product.price}</Text><Pressable onPress={() => addToCart(product.name)} style={[styles.primaryButton, styles.tinyButton]}><Text style={styles.tinyButtonText}>Adicionar ao Carrinho</Text></Pressable></View>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Ver detalhes de ${product.name}`} onPress={() => openProductDetails(product)} style={styles.productCardDetails}>
+        <Text numberOfLines={2} style={styles.cardTitle}>{product.label}</Text>
+        <View style={[styles.productBottle, isMobile && styles.productBottleMobile]}>{product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.productPhoto} resizeMode="contain" accessibilityLabel={`Foto de ${product.name}`} /> : <WineBottle tone={product.tone} small />}</View>
+        <BodyCopy numberOfLines={isMobile ? 4 : 5} style={[styles.productDescription, isMobile && styles.productDescriptionMobile]}>{product.description}</BodyCopy>
+        <Text style={styles.stars}>★★★★★</Text>
+      </Pressable>
+      <View style={styles.cardBottom}><Pressable accessibilityRole="button" accessibilityLabel={`Ver detalhes de ${product.name}`} onPress={() => openProductDetails(product)}><Text style={styles.cardPrice}>{product.price}</Text></Pressable><Pressable onPress={() => addToCart(product.name)} style={[styles.primaryButton, styles.tinyButton]}><Text style={styles.tinyButtonText}>Adicionar ao Carrinho</Text></Pressable></View>
     </View>
   ));
   const renderAdminProductRows = (items: Product[]) => items.length
@@ -482,14 +491,43 @@ function SiteScreen() {
               {searchGroups.map((group) => <View key={group.id} style={styles.searchCategoryGroup}>
                 <View style={styles.searchCategoryHeading}><Text style={styles.searchCategoryTitle}>{group.label}</Text><Text style={styles.searchCategoryCount}>{group.items.length} {group.items.length === 1 ? "produto" : "produtos"}</Text></View>
                 {group.items.map((product) => <View key={product.id} style={styles.searchProductRow}>
-                  <View style={styles.searchProductImageWrap}>{product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.searchProductImage} resizeMode="contain" accessibilityLabel={`Foto de ${product.name}`} /> : <View style={styles.searchBottleFallback}><WineBottle tone={product.tone} small /></View>}</View>
-                  <View style={styles.searchProductInfo}><Text numberOfLines={2} style={styles.searchProductName}>{product.name}</Text><BodyCopy numberOfLines={2} style={styles.searchProductDescription}>{product.description}</BodyCopy><Text style={styles.searchProductPrice}>{product.price}</Text></View>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Ver detalhes de ${product.name}`} onPress={() => openProductDetails(product)} style={styles.searchProductDetails}><View style={styles.searchProductImageWrap}>{product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.searchProductImage} resizeMode="contain" accessibilityLabel={`Foto de ${product.name}`} /> : <View style={styles.searchBottleFallback}><WineBottle tone={product.tone} small /></View>}</View>
+                  <View style={styles.searchProductInfo}><Text numberOfLines={2} style={styles.searchProductName}>{product.name}</Text><BodyCopy numberOfLines={2} style={styles.searchProductDescription}>{product.description}</BodyCopy><Text style={styles.searchProductPrice}>{product.price}</Text></View></Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Adicionar ${product.name} ao carrinho`} onPress={() => addToCart(product.name)} style={styles.searchAddButton}><Plus size={15} color="#fff" strokeWidth={2.4} /><Text style={styles.searchAddButtonText}>Adicionar</Text></Pressable>
                 </View>)}
               </View>)}
               {products.length === 0 && <Text style={styles.searchEmpty}>Nenhum produto cadastrado. Cadastre novos produtos em Configurações.</Text>}
               {products.length > 0 && searchGroups.length === 0 && <Text style={styles.searchEmpty}>Nenhum produto encontrado. Tente outro termo.</Text>}
             </ScrollView>
+          </View>
+        </View>}
+
+        {selectedProduct && <View style={[styles.productDetailScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <View style={[styles.productDetailContent, !isMobile && styles.productDetailContentWide]}>
+            <View style={styles.productDetailHeader}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={() => setSelectedProduct(null)} style={styles.productDetailBack}><ChevronLeft size={23} color="#d5a472" strokeWidth={2} /><Text style={styles.productDetailBackText}>Voltar</Text></Pressable>
+              <Text style={styles.productDetailHeaderTitle}>Detalhes do produto</Text>
+            </View>
+            <ScrollView style={styles.productDetailScroll} contentContainerStyle={[styles.productDetailBody, isMobile && styles.productDetailBodyMobile]}>
+              <View style={[styles.productDetailHero, isMobile && styles.productDetailHeroMobile]}>
+                {selectedProduct.imageUrl ? <Image source={{ uri: selectedProduct.imageUrl }} style={styles.productDetailImage} resizeMode="contain" accessibilityLabel={`Foto de ${selectedProduct.name}`} /> : <View style={styles.productDetailBottle}><WineBottle tone={selectedProduct.tone} /></View>}
+              </View>
+              <View style={styles.productDetailInfo}>
+                <View style={styles.productDetailCategory}><Text style={styles.productDetailCategoryText}>{selectedProduct.category === "frigobar" ? "FRIGOBAR" : "ADEGA"}</Text></View>
+                <Text style={styles.productDetailName}>{selectedProduct.label || selectedProduct.name}</Text>
+                {selectedProduct.label && selectedProduct.label !== selectedProduct.name && <Text style={styles.productDetailSubtitle}>{selectedProduct.name}</Text>}
+                <Text style={styles.productDetailPrice}>{parsePrice(selectedProduct.price) === null ? selectedProduct.price : formatPrice(parsePrice(selectedProduct.price)!)}</Text>
+                <View style={styles.productDetailDivider} />
+                <Text style={styles.productDetailSectionTitle}>Sobre este produto</Text>
+                <Text style={styles.productDetailDescription}>{selectedProduct.description}</Text>
+                <View style={styles.productDetailQuantityRow}><View><Text style={styles.productDetailSectionTitle}>Quantidade</Text><Text style={styles.productDetailQuantityHint}>Escolha quantas unidades deseja</Text></View><View style={styles.productDetailQuantityControl}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Diminuir quantidade" disabled={detailQuantity <= 1} onPress={() => setDetailQuantity((quantity) => Math.max(1, quantity - 1))} style={[styles.productDetailQuantityButton, detailQuantity <= 1 && styles.productDetailQuantityButtonDisabled]}><Minus size={16} color="#eee5da" /></Pressable>
+                  <Text style={styles.productDetailQuantity}>{detailQuantity}</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Aumentar quantidade" onPress={() => setDetailQuantity((quantity) => quantity + 1)} style={styles.productDetailQuantityButton}><Plus size={16} color="#eee5da" /></Pressable>
+                </View></View>
+              </View>
+            </ScrollView>
+            <View style={styles.productDetailFooter}><View style={styles.productDetailTotal}><Text style={styles.productDetailTotalLabel}>Total</Text><Text style={styles.productDetailTotalValue}>{parsePrice(selectedProduct.price) === null ? selectedProduct.price : formatPrice(parsePrice(selectedProduct.price)! * detailQuantity)}</Text></View><Pressable accessibilityRole="button" onPress={() => { addToCart(selectedProduct.name, detailQuantity); setSelectedProduct(null); }} style={styles.productDetailAddButton}><ShoppingBag size={17} color="#fff" strokeWidth={2} /><Text style={styles.productDetailAddText}>Adicionar ao Carrinho</Text></Pressable></View>
           </View>
         </View>}
 
@@ -667,6 +705,7 @@ const styles = StyleSheet.create({
   productGridMobile: { flexDirection: "row", gap: 12, paddingRight: 18 },
   productCard: { height: 380, flex: 0, minWidth: 0, alignItems: "center", padding: 15, borderWidth: 1, borderColor: "#49372a", backgroundColor: "#19130f" },
   productCardMobile: { width: 245, height: 403, flex: 0, flexBasis: "auto", flexShrink: 0, padding: 14 },
+  productCardDetails: { width: "100%", flex: 1, alignItems: "center" },
   cardTitle: { width: "100%", minHeight: 34, color: "#f2ece5", fontSize: 14, fontWeight: "700", textAlign: "center" },
   productBottle: { width: "100%", height: 160, alignItems: "center", justifyContent: "center", marginTop: 2 },
   productBottleMobile: { height: 210, justifyContent: "center" },
@@ -761,6 +800,7 @@ const styles = StyleSheet.create({
   searchCategoryTitle: { color: "#f3f1ef", fontSize: 16, fontWeight: "700" },
   searchCategoryCount: { color: "#a99a8b", fontSize: 10 },
   searchProductRow: { minHeight: 112, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: "#33271e" },
+  searchProductDetails: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 12 },
   searchProductImageWrap: { width: 66, height: 78, alignItems: "center", justifyContent: "center", overflow: "hidden", borderRadius: 8, backgroundColor: "#18120e" },
   searchProductImage: { width: "100%", height: "100%" },
   searchBottleFallback: { height: 80, overflow: "hidden", alignItems: "center", justifyContent: "center", transform: [{ scale: .43 }] },
@@ -771,6 +811,41 @@ const styles = StyleSheet.create({
   searchAddButton: { minHeight: 36, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 10, borderRadius: 18, backgroundColor: "#765036" },
   searchAddButtonText: { color: "#fff", fontSize: 10, fontWeight: "700" },
   searchEmpty: { paddingVertical: 30, color: "#bcb8b5", fontSize: 12, lineHeight: 19, textAlign: "center" },
+  productDetailScreen: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 30, alignItems: "stretch", paddingHorizontal: 18, backgroundColor: "#0d0b09" },
+  productDetailContent: { flex: 1, width: "100%", alignSelf: "center" },
+  productDetailContentWide: { maxWidth: 980 },
+  productDetailHeader: { minHeight: 70, position: "relative", flexDirection: "row", alignItems: "center", justifyContent: "center", borderBottomWidth: 1, borderBottomColor: "#49372a" },
+  productDetailBack: { position: "absolute", left: 0, zIndex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 4, paddingRight: 8 },
+  productDetailBackText: { color: "#d5a472", fontSize: 13, fontWeight: "600" },
+  productDetailHeaderTitle: { color: "#f3f1ef", fontSize: 16, fontWeight: "700" },
+  productDetailScroll: { flex: 1 },
+  productDetailBody: { flexGrow: 1, flexDirection: "row", alignItems: "center", gap: 34, paddingVertical: 28 },
+  productDetailBodyMobile: { flexDirection: "column", alignItems: "stretch", gap: 20, paddingTop: 16, paddingBottom: 24 },
+  productDetailHero: { height: 470, flex: 1, alignItems: "center", justifyContent: "center", overflow: "hidden", borderRadius: 12, backgroundColor: "#17110d" },
+  productDetailHeroMobile: { height: 300, flex: 0, width: "100%", borderRadius: 10 },
+  productDetailImage: { width: "100%", height: "100%" },
+  productDetailBottle: { height: 270, alignItems: "center", justifyContent: "center", transform: [{ scale: 1.5 }] },
+  productDetailInfo: { flex: 1, minWidth: 0, alignItems: "flex-start", paddingVertical: 14 },
+  productDetailCategory: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: "#2b1e14" },
+  productDetailCategoryText: { color: "#d5a472", fontSize: 9, fontWeight: "700", letterSpacing: 1.1 },
+  productDetailName: { marginTop: 16, color: "#f3f1ef", fontSize: 26, lineHeight: 32, fontWeight: "800" },
+  productDetailSubtitle: { marginTop: 5, color: "#bcb8b5", fontSize: 13 },
+  productDetailPrice: { marginTop: 15, color: "#d5a472", fontSize: 22, fontWeight: "800" },
+  productDetailDivider: { width: "100%", height: 1, marginTop: 23, marginBottom: 20, backgroundColor: "#49372a" },
+  productDetailSectionTitle: { color: "#f3f1ef", fontSize: 14, fontWeight: "700" },
+  productDetailDescription: { marginTop: 9, color: "#c4bbb2", fontSize: 13, lineHeight: 21 },
+  productDetailQuantityRow: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14, marginTop: 28, paddingTop: 19, borderTopWidth: 1, borderTopColor: "#33271e" },
+  productDetailQuantityHint: { marginTop: 4, color: "#9e9388", fontSize: 10 },
+  productDetailQuantityControl: { height: 40, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 5, borderWidth: 1, borderColor: "#49372a", borderRadius: 22 },
+  productDetailQuantityButton: { width: 32, height: 34, alignItems: "center", justifyContent: "center" },
+  productDetailQuantityButtonDisabled: { opacity: .4 },
+  productDetailQuantity: { minWidth: 18, color: "#f3f1ef", textAlign: "center", fontSize: 13, fontWeight: "700" },
+  productDetailFooter: { flexDirection: "row", alignItems: "center", gap: 18, paddingTop: 14, paddingBottom: 12, borderTopWidth: 1, borderTopColor: "#49372a", backgroundColor: "#0d0b09" },
+  productDetailTotal: { minWidth: 100, gap: 3 },
+  productDetailTotalLabel: { color: "#a99a8b", fontSize: 10 },
+  productDetailTotalValue: { color: "#d5a472", fontSize: 17, fontWeight: "800" },
+  productDetailAddButton: { minHeight: 48, flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, paddingHorizontal: 18, borderRadius: 7, backgroundColor: "#765036" },
+  productDetailAddText: { color: "#fff", fontSize: 13, fontWeight: "700" },
   cartEmpty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, paddingBottom: 45 },
   cartEmptyIcon: { width: 68, height: 68, alignItems: "center", justifyContent: "center", marginBottom: 20, borderRadius: 34, backgroundColor: "#211912" },
   cartEmptyTitle: { color: "#f3f1ef", fontSize: 21, fontWeight: "700", textAlign: "center" },
