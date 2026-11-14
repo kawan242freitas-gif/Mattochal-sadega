@@ -53,6 +53,17 @@ function formatPrice(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function formatCurrencyDigits(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 12);
+  if (!digits) return "";
+  return formatPrice(Number(digits) / 100);
+}
+
+function formatExistingCurrency(value?: string) {
+  const parsed = parsePrice(value);
+  return parsed === null ? "" : formatPrice(parsed);
+}
+
 function effectivePrice(product?: Product) {
   return parsePrice(product?.promotionalPrice || product?.price);
 }
@@ -496,8 +507,8 @@ function SiteScreen() {
     setProductName(product?.name ?? "");
     setProductLabel(product?.label ?? "");
     setProductCategory(product?.category ?? "adega");
-    setProductPrice(product?.price === "..." ? "" : product?.price ?? "");
-    setProductPromotionalPrice(product?.promotionalPrice ?? "");
+    setProductPrice(product?.price === "..." ? "" : formatExistingCurrency(product?.price));
+    setProductPromotionalPrice(formatExistingCurrency(product?.promotionalPrice));
     setProductStockQuantity(product?.stockQuantity === undefined ? "" : String(product.stockQuantity));
     setProductDescription(product?.description ?? "");
     setProductTone(product?.tone ?? "ivory");
@@ -552,8 +563,8 @@ function SiteScreen() {
       name,
       label,
       category: productCategory,
-      price: productPrice.trim(),
-      ...(productPromotionalPrice.trim() ? { promotionalPrice: productPromotionalPrice.trim() } : {}),
+      price: formatExistingCurrency(productPrice),
+      ...(productPromotionalPrice.trim() ? { promotionalPrice: formatExistingCurrency(productPromotionalPrice) } : {}),
       ...(stockQuantity !== undefined ? { stockQuantity } : {}),
       description: productDescription.trim() || "Produto selecionado pela Matto Chalés.",
       tone: productTone,
@@ -897,9 +908,9 @@ function SiteScreen() {
                   <Text style={styles.settingLabel}>Categoria do produto</Text>
                   <View style={styles.productCategoryOptions}>{([["adega", "Adega"], ["frigobar", "Frigobar"]] as const).map(([category, label]) => <Pressable key={category} accessibilityRole="radio" accessibilityState={{ checked: productCategory === category }} onPress={() => setProductCategory(category)} style={[styles.productCategoryOption, productCategory === category && styles.productCategoryOptionActive]}><Text style={styles.productCategoryOptionText}>{label}</Text></Pressable>)}</View>
                   <Text style={styles.settingLabel}>Preço normal</Text>
-                  <TextInput value={productPrice} onChangeText={setProductPrice} placeholder="Ex.: R$ 89,90" placeholderTextColor="#9e9388" style={styles.searchInput} />
+                  <TextInput value={productPrice} onChangeText={(value) => setProductPrice(formatCurrencyDigits(value))} placeholder="R$ 0,00" placeholderTextColor="#9e9388" keyboardType="number-pad" style={styles.searchInput} />
                   <Text style={styles.settingLabel}>Preço promocional (opcional)</Text>
-                  <TextInput value={productPromotionalPrice} onChangeText={setProductPromotionalPrice} placeholder="Ex.: R$ 79,90" placeholderTextColor="#9e9388" style={styles.searchInput} />
+                  <TextInput value={productPromotionalPrice} onChangeText={(value) => setProductPromotionalPrice(formatCurrencyDigits(value))} placeholder="R$ 0,00" placeholderTextColor="#9e9388" keyboardType="number-pad" style={styles.searchInput} />
                   <Text style={styles.settingLabel}>Quantidade em estoque (opcional)</Text>
                   <TextInput value={productStockQuantity} onChangeText={setProductStockQuantity} placeholder="Em branco = sem controle de estoque" placeholderTextColor="#9e9388" keyboardType="number-pad" style={styles.searchInput} />
                   <Text style={styles.adminHint}>Use 0 para marcar como esgotado. O estoque é descontado quando o cliente envia o comprovante.</Text>
