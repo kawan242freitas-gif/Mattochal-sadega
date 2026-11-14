@@ -289,19 +289,20 @@ function SiteScreen() {
   }
 
   function pressNav(id: string) {
-    setActive(id);
     if (id === "home") {
       setPanel(null);
+      setActive("home");
       scrollRef.current?.scrollTo({ y: 0, animated: true });
       return;
     }
-    if (id === "search") {
-      const opening = panel !== "search";
-      setPanel(opening ? "search" : null);
-      if (opening) scrollRef.current?.scrollTo({ y: 0, animated: true });
+    if (panel === id) {
+      setPanel(null);
+      setActive("home");
       return;
     }
-    setPanel((current) => current === id ? null : id as PanelName);
+    setPanel(id as PanelName);
+    setActive(id);
+    if (id === "search") scrollRef.current?.scrollTo({ y: 0, animated: true });
   }
 
   const pageStyle = [styles.page, isMobile && styles.pageMobile];
@@ -442,7 +443,7 @@ function SiteScreen() {
             <View style={panel === "settings" ? styles.settingsScreenPanel : panelStyle}>
               {panel === "settings" ? (
                 <View style={styles.settingsScreenHeader}>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja" onPress={() => setPanel(null)} style={styles.settingsBackButton}><Text style={styles.settingsBackArrow}>‹</Text><Text style={styles.settingsBackText}>Loja</Text></Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja" onPress={() => { setPanel(null); setActive("home"); }} style={styles.settingsBackButton}><Text style={styles.settingsBackArrow}>‹</Text><Text style={styles.settingsBackText}>Loja</Text></Pressable>
                   <View style={styles.settingsScreenHeadingCopy}><Text style={styles.settingsScreenTitle}>Configurações</Text><Text style={styles.settingsScreenSubtitle}>Gerencie seus produtos e o catálogo</Text></View>
                 </View>
               ) : (
