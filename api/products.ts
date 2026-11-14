@@ -9,12 +9,13 @@ type ProductDocument = {
   price: string;
   description: string;
   tone: string;
+  category: "adega" | "frigobar";
   imageUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 };
 
-type ProductInput = Pick<ProductDocument, "name" | "label" | "price" | "description" | "tone" | "imageUrl">;
+type ProductInput = Pick<ProductDocument, "name" | "label" | "price" | "description" | "tone" | "category" | "imageUrl">;
 
 function toProduct(document: WithId<ProductDocument>) {
   return {
@@ -24,6 +25,7 @@ function toProduct(document: WithId<ProductDocument>) {
     price: document.price,
     description: document.description || "Produto selecionado pela Matto Chalés.",
     tone: document.tone,
+    category: document.category === "frigobar" ? "frigobar" : "adega",
     ...(document.imageUrl ? { imageUrl: document.imageUrl } : {}),
   };
 }
@@ -39,6 +41,7 @@ function parseProduct(body: unknown): ProductInput | null {
     : name.toUpperCase();
   const price = typeof value.price === "string" ? value.price.trim().slice(0, 40) : "";
   const tone = ["gold", "ivory", "olive"].includes(String(value.tone)) ? String(value.tone) : "ivory";
+  const category = value.category === "frigobar" ? "frigobar" : "adega";
   const imageUrl = typeof value.imageUrl === "string" ? value.imageUrl.trim().slice(0, 2048) : "";
   if (imageUrl && !imageUrl.startsWith("https://")) return null;
 
@@ -47,7 +50,7 @@ function parseProduct(body: unknown): ProductInput | null {
     ? value.description.trim().slice(0, 300)
     : "Produto selecionado pela Matto Chalés.";
 
-  return { name, label, price, description, tone, ...(imageUrl ? { imageUrl } : {}) };
+  return { name, label, price, description, tone, category, ...(imageUrl ? { imageUrl } : {}) };
 }
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {

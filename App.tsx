@@ -19,7 +19,9 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 import { ChevronLeft, ChevronRight, House, Minus, Plus, Search, ShoppingBag, ShoppingCart, Settings, Trash2, X } from "lucide-react-native";
 
 type PanelName = "search" | "cart" | "settings" | null;
-type Product = { id: string; name: string; label: string; price: string; description: string; tone: string; imageUrl?: string };
+type ProductCategory = "adega" | "frigobar";
+type CategoryFilter = "todos" | ProductCategory;
+type Product = { id: string; name: string; label: string; price: string; description: string; tone: string; category: ProductCategory; imageUrl?: string };
 
 const HERO_IMAGE_URL = "https://r2.fivemanage.com/vLUsF9vzqBOo7DSFHERFX/CestadeVinhosMattoChals.png";
 
@@ -43,6 +45,12 @@ const navItems = [
   { id: "cart", label: "Carrinho", Icon: ShoppingCart },
   { id: "settings", label: "Configurações", Icon: Settings },
 ] as const;
+
+const productCategoryFilters: { id: CategoryFilter; label: string }[] = [
+  { id: "todos", label: "Todos" },
+  { id: "adega", label: "Adega" },
+  { id: "frigobar", label: "Frigobar" },
+];
 
 const webGlassStyle = Platform.OS === "web"
   ? ({
@@ -103,6 +111,8 @@ function SiteScreen() {
   const [productFormOpen, setProductFormOpen] = useState(false);
   const [productName, setProductName] = useState("");
   const [productLabel, setProductLabel] = useState("");
+  const [productCategory, setProductCategory] = useState<ProductCategory>("adega");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("todos");
   const [productPrice, setProductPrice] = useState("");
   const [productDescription, setProductDescription] = useState("");
   const [productTone, setProductTone] = useState("ivory");
@@ -123,6 +133,7 @@ function SiteScreen() {
           if (!cancelled) {
             setProducts(savedProducts.map((product) => ({
               ...product,
+              category: product.category === "frigobar" ? "frigobar" : "adega",
               price: product.price && product.price !== "..." ? product.price : "Consulte",
               description: product.description || "Produto selecionado pela Matto Chalés.",
             })));
@@ -141,10 +152,16 @@ function SiteScreen() {
 
   const shownProducts = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
-    return products.filter((product) => product.name.toLocaleLowerCase().includes(normalized));
-  }, [products, query]);
+    return products.filter((product) => product.name.toLocaleLowerCase().includes(normalized)
+      && (categoryFilter === "todos" || product.category === categoryFilter));
+  }, [products, query, categoryFilter]);
   const productCardWidth = isMobile ? 245 : Math.max(260, Math.floor((viewportWidth - 68 - 32) / 3));
   const productCardGap = isMobile ? 12 : 16;
+
+  useEffect(() => {
+    productScrollPosition.current = 0;
+    productsScrollRef.current?.scrollTo({ x: 0, animated: false });
+  }, [query, categoryFilter]);
 
   function scrollProducts(direction: -1 | 1) {
     const maxScroll = Math.max(0, productScrollWidth.current - productViewportWidth.current);
@@ -204,6 +221,7 @@ function SiteScreen() {
     setEditingProductId(product?.id ?? null);
     setProductName(product?.name ?? "");
     setProductLabel(product?.label ?? "");
+    setProductCategory(product?.category ?? "adega");
     setProductPrice(product?.price === "..." ? "" : product?.price ?? "");
     setProductDescription(product?.description ?? "");
     setProductTone(product?.tone ?? "ivory");
@@ -246,6 +264,7 @@ function SiteScreen() {
       id: editingProductId ?? `product-${Date.now()}`,
       name,
       label,
+      category: productCategory,
       price: productPrice.trim(),
       description: productDescription.trim() || "Produto selecionado pela Matto Chalés.",
       tone: productTone,
@@ -330,7 +349,7 @@ function SiteScreen() {
     </View>
   ));
   const renderAdminProductRows = (items: Product[]) => items.length
-    ? <View style={styles.adminProductList}>{items.map((product) => <View style={styles.adminProductRow} key={product.id}><View style={styles.adminProductInfo}><Text style={styles.adminProductName}>{product.name}</Text><Text style={styles.adminProductMeta}>{product.label} · {product.price}</Text></View><Pressable disabled={!canManageProducts} onPress={() => openProductForm(product)} style={styles.adminActionLink}><Text style={[styles.adminActionText, !canManageProducts && styles.adminDisabled]}>Editar</Text></Pressable><Pressable disabled={!canManageProducts} accessibilityLabel={`Excluir ${product.name}`} onPress={() => deleteProduct(product)} style={styles.adminActionLink}><Text style={[styles.deleteActionText, !canManageProducts && styles.adminDisabled]}>Excluir</Text></Pressable></View>)}</View>
+    ? <View style={styles.adminProductList}>{items.map((product) => <View style={styles.adminProductRow} key={product.id}><View style={styles.adminProductInfo}><Text style={styles.adminProductName}>{product.name}</Text><Text style={styles.adminProductMeta}>{product.label} · {product.price} · {product.category === "frigobar" ? "Frigobar" : "Adega"}</Text></View><Pressable disabled={!canManageProducts} onPress={() => openProductForm(product)} style={styles.adminActionLink}><Text style={[styles.adminActionText, !canManageProducts && styles.adminDisabled]}>Editar</Text></Pressable><Pressable disabled={!canManageProducts} accessibilityLabel={`Excluir ${product.name}`} onPress={() => deleteProduct(product)} style={styles.adminActionLink}><Text style={[styles.deleteActionText, !canManageProducts && styles.adminDisabled]}>Excluir</Text></Pressable></View>)}</View>
     : <Text style={styles.adminEmpty}>Nenhum produto nesta seção.</Text>;
   const navContent = (
     <View style={styles.navItems}>
@@ -389,11 +408,15 @@ function SiteScreen() {
 
             <View style={[styles.productsSection, isMobile && styles.productsSectionMobile]}>
               <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>NOSSOS PRODUTOS</SectionTitle><View style={[styles.arrows, isMobile && styles.arrowsMobile]}><Pressable accessibilityRole="button" accessibilityLabel="Produto anterior" onPress={() => scrollProducts(-1)} style={[styles.arrow, isMobile && styles.arrowMobile]}><ChevronLeft size={15} color="#f2ece5" strokeWidth={2} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Próximo produto" onPress={() => scrollProducts(1)} style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}><ChevronRight size={15} color="#f2ece5" strokeWidth={2} /></Pressable></View></View>
+              <View style={[styles.catalogFilters, isMobile && styles.catalogFiltersMobile]} accessibilityRole="radiogroup" accessibilityLabel="Filtrar produtos por categoria">
+                {productCategoryFilters.map((filter) => <Pressable key={filter.id} accessibilityRole="radio" accessibilityState={{ checked: categoryFilter === filter.id }} onPress={() => setCategoryFilter(filter.id)} style={[styles.catalogFilterButton, categoryFilter === filter.id && styles.catalogFilterButtonActive]}><Text style={[styles.catalogFilterLabel, categoryFilter === filter.id && styles.catalogFilterLabelActive]}>{filter.label}</Text></Pressable>)}
+              </View>
               <ScrollView ref={productsScrollRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.productGrid, isMobile && styles.productGridMobile]} onLayout={(event) => { productViewportWidth.current = event.nativeEvent.layout.width; }} onContentSizeChange={(width) => { productScrollWidth.current = width; }} onScroll={(event) => { productScrollPosition.current = event.nativeEvent.contentOffset.x; }} scrollEventThrottle={16}>
                 {productCards}
               </ScrollView>
               {products.length === 0 && query.length === 0 && <Text style={styles.emptyCatalog}>Nenhum produto cadastrado. Cadastre novos produtos em Configurações.</Text>}
               {query.length > 0 && shownProducts.length === 0 && <Text style={styles.noResults}>Nenhum vinho encontrado.</Text>}
+              {query.length === 0 && categoryFilter !== "todos" && shownProducts.length === 0 && products.length > 0 && <Text style={styles.noResults}>Nenhum produto nesta categoria.</Text>}
             </View>
 
             <View style={[styles.footer, isMobile && styles.footerMobile]}>
@@ -470,6 +493,8 @@ function SiteScreen() {
                   <TextInput value={productName} onChangeText={setProductName} placeholder="Ex.: Vinho tinto" placeholderTextColor="#9e9388" style={styles.searchInput} />
                   <Text style={styles.settingLabel}>Título do cartão</Text>
                   <TextInput value={productLabel} onChangeText={setProductLabel} placeholder="Ex.: VINHO TINTO" placeholderTextColor="#9e9388" style={styles.searchInput} />
+                  <Text style={styles.settingLabel}>Categoria do produto</Text>
+                  <View style={styles.productCategoryOptions}>{([["adega", "Adega"], ["frigobar", "Frigobar"]] as const).map(([category, label]) => <Pressable key={category} accessibilityRole="radio" accessibilityState={{ checked: productCategory === category }} onPress={() => setProductCategory(category)} style={[styles.productCategoryOption, productCategory === category && styles.productCategoryOptionActive]}><Text style={styles.productCategoryOptionText}>{label}</Text></Pressable>)}</View>
                   <Text style={styles.settingLabel}>Preço</Text>
                   <TextInput value={productPrice} onChangeText={setProductPrice} placeholder="Ex.: R$ 89,90" placeholderTextColor="#9e9388" style={styles.searchInput} />
                   <Text style={styles.settingLabel}>Descrição</Text>
@@ -552,8 +577,14 @@ const styles = StyleSheet.create({
   productsSection: { paddingHorizontal: 34, paddingTop: 48, paddingBottom: 52, backgroundColor: "#100d0a" },
   productsSectionMobile: { paddingHorizontal: 18, paddingTop: 36, paddingBottom: 38 },
   emptyCatalog: { paddingVertical: 24, color: "#bcb8b5", fontSize: 12, lineHeight: 18, textAlign: "center" },
-  sectionHeadingLine: { flexDirection: "row", alignItems: "center", marginBottom: 25 },
+  sectionHeadingLine: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
   sectionHeadingLineMobile: { alignItems: "center", flexWrap: "wrap", rowGap: 10, marginBottom: 20 },
+  catalogFilters: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 18, padding: 3, borderWidth: 1, borderColor: "#49372a", borderRadius: 24, backgroundColor: "#15100c" },
+  catalogFiltersMobile: { marginBottom: 15 },
+  catalogFilterButton: { minHeight: 34, justifyContent: "center", paddingHorizontal: 14, borderRadius: 19 },
+  catalogFilterButtonActive: { backgroundColor: "#765036" },
+  catalogFilterLabel: { color: "#c5b8aa", fontSize: 11, fontWeight: "600" },
+  catalogFilterLabelActive: { color: "#fff", fontWeight: "700" },
   sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 14 },
   sectionRule: { width: 52, height: 1, backgroundColor: "#d8c9b8" },
   sectionRuleMobile: { width: 32 },
@@ -701,6 +732,10 @@ const styles = StyleSheet.create({
   cartItemName: { color: "#eee", fontSize: 12 },
   removeItem: { color: "#d2a678", fontSize: 11 },
   settingLabel: { color: "#ddd", fontSize: 12 },
+  productCategoryOptions: { flexDirection: "row", gap: 8, marginBottom: 3 },
+  productCategoryOption: { minHeight: 38, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: "#61482f", borderRadius: 7 },
+  productCategoryOptionActive: { borderColor: "#d5a472", backgroundColor: "#765036" },
+  productCategoryOptionText: { color: "#eee5da", fontSize: 11, fontWeight: "600" },
   descriptionInput: { minHeight: 76, paddingTop: 11, textAlignVertical: "top" },
   adminScroll: { maxHeight: 420 },
   adminScrollFull: { flex: 1, maxHeight: "100%" },
