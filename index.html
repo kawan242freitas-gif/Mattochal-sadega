@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0d0b09">
+    <meta name="description" content="Matto Chalés — estadias e experiências na natureza.">
+    <title>Matto Chalés</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/styles.css">
+    <script src="assets/app.js" defer></script>
+  </head>
+  <body>
+    <main class="page-backdrop">
+      <header class="nav" id="home">
+        <div class="nav__inner">
+          <a class="brand" href="#home" aria-label="Matto Chalés início">
+            <img class="brand__logo" src="assets/matto-chales-cabana.png" alt="" aria-hidden="true">
+            <span class="brand__word">Matto <span>Chalés</span></span>
+          </a>
+          <button class="nav__toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="site-menu">
+            <span></span><span></span><span></span>
+          </button>
+          <nav class="nav__menu" id="site-menu" aria-label="Main navigation">
+            <a class="nav__link nav__link--active" href="#home">Home</a>
+            <a class="nav__link" href="#about">About us</a>
+            <a class="nav__link" href="#products">Product</a>
+            <a class="nav__link" href="#contact">Contact us</a>
+          </nav>
+        </div>
+      </header>
+
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero__inner">
+          <span class="hero__triangle hero__triangle--one" aria-hidden="true"></span>
+          <span class="hero__triangle hero__triangle--two" aria-hidden="true"></span>
+          <div class="hero__copy">
+            <h1 class="h1" id="hero-title"><span>Wine dreams</span><span>come true</span></h1>
+            <p class="hero__tagline t3">Wine shop legendary</p>
+            <button class="button" type="button" data-add-to-cart="Wine dreams" data-price="450">Buy now</button>
+          </div>
+          <div class="hero__visual" aria-label="Wine bottle product image">
+            <div class="hero__bottle-placeholder media-placeholder" aria-hidden="true">
+              <span class="bottle-shape bottle-shape--hero"></span>
+              <span class="bottle-shape bottle-shape--side"></span>
+            </div>
+          </div>
+          <div class="hero__details">
+            <span class="hero__detail-mark" aria-hidden="true"></span>
+            <p class="t2">...</p>
+            <p class="hero__price">$450.00</p>
+            <button class="button button--small" type="button" data-add-to-cart="Wine dreams" data-price="450">Buy now</button>
+          </div>
+          <span class="hero__triangle hero__triangle--three" aria-hidden="true"></span>
+        </div>
+      </section>
+
+      <section class="section products" id="products" aria-labelledby="products-title">
+        <div class="section__inner">
+          <div class="section-heading">
+            <span class="section-heading__rule" aria-hidden="true"></span>
+            <h2 class="h2" id="products-title">Our product</h2>
+            <div class="carousel-controls" aria-label="Product carousel controls">
+              <button class="round-button" type="button" data-scroll="products-track" data-direction="-1" aria-label="Previous products">‹</button>
+              <button class="round-button round-button--accent" type="button" data-scroll="products-track" data-direction="1" aria-label="Next products">›</button>
+            </div>
+          </div>
+          <div class="products__track" id="products-track">
+            <article class="card product-card">
+              <h3 class="h3">Sparkling wine</h3>
+              <div class="product-card__image media-placeholder" role="img" aria-label="Sparkling wine bottle image">
+                <span class="bottle-shape bottle-shape--sparkling" aria-hidden="true"></span>
+              </div>
+              <p class="product-card__description t3">...</p>
+              <div class="product-card__rating" aria-label="Rated five out of five">★★★★★</div>
+              <div class="product-card__bottom"><span class="product-card__price">...</span><button class="button button--tiny" type="button" data-add-to-cart="Sparkling wine">Buy now</button></div>
+            </article>
+            <article class="card product-card">
+              <h3 class="h3">Fortified wine</h3>
+              <div class="product-card__image media-placeholder" role="img" aria-label="Fortified wine bottle image">
+                <span class="bottle-shape bottle-shape--fortified" aria-hidden="true"></span>
+              </div>
+              <p class="product-card__description t3">...</p>
+              <div class="product-card__rating" aria-label="Rated five out of five">★★★★★</div>
+              <div class="product-card__bottom"><span class="product-card__price">...</span><button class="button button--tiny" type="button" data-add-to-cart="Fortified wine">Buy now</button></div>
+            </article>
+            <article class="card product-card">
+              <h3 class="h3">Aromatized wine</h3>
+              <div class="product-card__image media-placeholder" role="img" aria-label="Aromatized wine bottle image">
+                <span class="bottle-shape bottle-shape--aromatized" aria-hidden="true"></span>
+              </div>
+              <p class="product-card__description t3">...</p>
+              <div class="product-card__rating" aria-label="Rated five out of five">★★★★★</div>
+              <div class="product-card__bottom"><span class="product-card__price">...</span><button class="button button--tiny" type="button" data-add-to-cart="Aromatized wine">Buy now</button></div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section2 feature" id="about" aria-labelledby="feature-title">
+        <div class="section__inner feature__inner">
+          <div class="feature-media media-placeholder" role="img" aria-label="Vineyard and wine bottle image">
+            <span class="feature-media__vines" aria-hidden="true"></span>
+            <span class="bottle-shape bottle-shape--feature" aria-hidden="true"></span>
+          </div>
+          <div class="feature__copy">
+            <span class="feature__triangle" aria-hidden="true"></span>
+            <h2 class="h2" id="feature-title">Find your perfect pour</h2>
+            <p class="t2">...</p>
+            <p class="t2">...</p>
+            <p class="t2">...</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section3 stats" aria-label="Matto Chalés em números">
+        <div class="section__inner stats__inner">
+          <article class="card2 stat"><strong class="h2">30+</strong><span class="t2">Years of experience</span></article>
+          <article class="card2 stat"><strong class="h2">100+</strong><span class="t2">Product new</span></article>
+          <article class="card2 stat"><strong class="h2">2K+</strong><span class="t2">Happy client</span></article>
+          <article class="card2 stat"><strong class="h2">80+</strong><span class="t2">Country branch</span></article>
+        </div>
+      </section>
+
+      <section class="section4 testimonials" aria-labelledby="testimonials-title">
+        <div class="section__inner">
+          <div class="section-heading section-heading--testimonials">
+            <span class="section-heading__rule" aria-hidden="true"></span>
+            <h2 class="h2" id="testimonials-title">What our client say<br>our product</h2>
+            <span class="section-heading__triangle" aria-hidden="true"></span>
+            <div class="carousel-controls" aria-label="Testimonial carousel controls">
+              <button class="round-button" type="button" data-scroll="quotes-track" data-direction="-1" aria-label="Previous testimonials">‹</button>
+              <button class="round-button round-button--accent" type="button" data-scroll="quotes-track" data-direction="1" aria-label="Next testimonials">›</button>
+            </div>
+          </div>
+          <div class="quotes-track" id="quotes-track">
+            <article class="quote">
+              <span class="quote__mark" aria-hidden="true">“</span>
+              <p class="t2">...</p>
+              <p class="quote__byline">Client - <strong>...</strong></p>
+              <span class="quote__avatar media-placeholder" role="img" aria-label="Client portrait"></span>
+            </article>
+            <article class="quote">
+              <span class="quote__mark" aria-hidden="true">“</span>
+              <p class="t2">...</p>
+              <p class="quote__byline">Client - <strong>...</strong></p>
+              <span class="quote__avatar media-placeholder" role="img" aria-label="Client portrait"></span>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section5 campaign" aria-labelledby="campaign-title">
+        <div class="promo-backdrop" aria-hidden="true">
+          <span class="promo-bottle promo-bottle--left"></span>
+          <span class="promo-bottle promo-bottle--center"></span>
+          <span class="promo-bottle promo-bottle--right"></span>
+        </div>
+        <div class="campaign__content">
+          <p class="campaign__eyebrow">2023</p>
+          <h2 class="h2" id="campaign-title">New wine products</h2>
+          <div class="campaign__year">2023</div>
+          <div class="campaign__bottle media-placeholder" role="img" aria-label="Featured wine bottle image">
+            <span class="bottle-shape bottle-shape--featured" aria-hidden="true"></span>
+          </div>
+          <span class="campaign__triangle" aria-hidden="true"></span>
+        </div>
+      </section>
+
+      <section class="section6 cta" aria-labelledby="cta-title">
+        <div class="section__inner cta__inner">
+          <div class="cta__copy">
+            <h2 class="h3" id="cta-title">Buy now with our product</h2>
+            <p class="t3">...</p>
+          </div>
+          <a class="button button--light" href="#products">Buy now</a>
+        </div>
+      </section>
+
+      <footer class="footer" id="contact">
+        <div class="section__inner footer__main">
+          <div class="footer__about">
+            <a class="brand brand--footer" href="#home"><span class="brand__word">Matto Chalés</span></a>
+            <p class="t2">...</p>
+            <div class="social-links" aria-label="Social links">
+              <a href="#contact" aria-label="Facebook">f</a>
+              <a href="#contact" aria-label="Instagram">◎</a>
+              <a href="#contact" aria-label="Twitter">𝕏</a>
+              <a href="#contact" aria-label="Pinterest">p</a>
+            </div>
+          </div>
+          <div class="footer__links">
+            <h2 class="h3">Quick link</h2>
+            <a href="#home">Home</a>
+            <a href="#products">Our product</a>
+            <a href="#testimonials-title">Testimonial</a>
+            <a href="#contact">Contact us</a>
+          </div>
+          <div class="footer__contact">
+            <h2 class="h3">Contact us</h2>
+            <p><span aria-hidden="true">⌖</span> ...</p>
+            <p><span aria-hidden="true">☎</span> ...</p>
+            <p><span aria-hidden="true">✉</span> ...</p>
+          </div>
+        </div>
+        <div class="footer__bottom"><p class="t3">...</p></div>
+      </footer>
+
+      <div class="floating-panels">
+        <section class="floating-panel search-panel" id="search-panel" aria-labelledby="search-title" hidden>
+          <div class="floating-panel__heading">
+            <h2 class="h3" id="search-title">Buscar produtos</h2>
+            <button class="panel-close" type="button" data-close-panel aria-label="Fechar busca">×</button>
+          </div>
+          <label class="search-field">
+            <span class="sr-only">Buscar vinhos</span>
+            <input id="product-search" type="search" placeholder="Digite um vinho..." autocomplete="off">
+          </label>
+          <p class="panel-status t3" id="search-status" aria-live="polite">Sparkling, fortified ou aromatized wine</p>
+        </section>
+
+        <section class="floating-panel cart-panel" id="cart-panel" aria-labelledby="cart-title" hidden>
+          <div class="floating-panel__heading">
+            <h2 class="h3" id="cart-title">Seu carrinho</h2>
+            <button class="panel-close" type="button" data-close-panel aria-label="Fechar carrinho">×</button>
+          </div>
+          <p class="panel-status t3" id="cart-empty">Seu carrinho está vazio.</p>
+          <ul class="cart-items" id="cart-items" aria-live="polite"></ul>
+          <a class="button button--small cart-checkout" href="#contact">Falar com a loja</a>
+        </section>
+
+        <section class="floating-panel settings-panel" id="settings-panel" aria-labelledby="settings-title" hidden>
+          <div class="floating-panel__heading">
+            <h2 class="h3" id="settings-title">Configurações</h2>
+            <button class="panel-close" type="button" data-close-panel aria-label="Fechar configurações">×</button>
+          </div>
+          <label class="setting-option"><span>Alto contraste</span><input type="checkbox" data-setting="contrast"></label>
+          <label class="setting-option"><span>Texto ampliado</span><input type="checkbox" data-setting="text"></label>
+          <label class="setting-option"><span>Reduzir movimento</span><input type="checkbox" data-setting="motion"></label>
+        </section>
+      </div>
+
+      <nav class="floating-nav" aria-label="Navegação rápida">
+        <a class="floating-nav__item floating-nav__item--active" href="#home" aria-current="page">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1V10Z"/></svg>
+          <span>Home</span>
+        </a>
+        <button class="floating-nav__item" type="button" data-panel="search-panel" aria-controls="search-panel" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>
+          <span>Buscar</span>
+        </button>
+        <button class="floating-nav__item floating-nav__cart" type="button" data-panel="cart-panel" aria-controls="cart-panel" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.1 11.1a2 2 0 0 0 2 1.6h8.5a2 2 0 0 0 1.9-1.4L21 8H6"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>
+          <span>Carrinho</span><span class="cart-count" id="cart-count" aria-label="0 itens no carrinho">0</span>
+        </button>
+        <button class="floating-nav__item" type="button" data-panel="settings-panel" aria-controls="settings-panel" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a7.8 7.8 0 0 1-1.5.9l-.3 1.8h-2.8l-.3-1.8a7.8 7.8 0 0 1-1.5-.9l-1.7.6-1.4-2.4 1.4-1.1a6.6 6.6 0 0 1 0-1.8l-1.4-1.1 1.4-2.4 1.7.6a7.8 7.8 0 0 1 1.5-.9l.3-1.8h2.8l.3 1.8a7.8 7.8 0 0 1 1.5.9l1.7-.6 1.4 2.4-1.4 1.1a6.6 6.6 0 0 1 0 1.7Z"/></svg>
+          <span>Configurações</span>
+        </button>
+      </nav>
+    </main>
+  </body>
+</html>
