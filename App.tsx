@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
   headerMobile: { height: 60, paddingHorizontal: 18 },
   expandedSearch: { minHeight: 64, paddingHorizontal: 28, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#15100c", borderBottomWidth: 1, borderBottomColor: "#49372a" },
   expandedSearchMobile: { minHeight: 58, paddingHorizontal: 18, gap: 10 },
-  expandedSearchInput: { flex: 1, minWidth: 0, height: 42, paddingHorizontal: 2, color: "#fff", fontSize: 14, backgroundColor: "transparent", outlineStyle: "none" } as any,
+  expandedSearchInput: { flex: 1, minWidth: 0, height: 42, paddingHorizontal: 2, color: "#fff", fontSize: 16, backgroundColor: "transparent", outlineStyle: "none" } as any,
   expandedSearchClose: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: 20, backgroundColor: "#211912" },
   brand: { color: "#f3f1ef", fontSize: 27, fontWeight: "700", letterSpacing: -1 },
   brandMobile: { fontSize: 24 },
