@@ -17,6 +17,11 @@ Não coloque valores reais em arquivos versionados nem em código executado no n
 - `PUT /api/products?id=<id>`: atualiza produto.
 - `DELETE /api/products?id=<id>`: remove produto.
 - `POST /api/admin-session`: valida a chave de administração.
+- `POST /api/orders`: cria uma comanda usando os preços atuais do catálogo e retorna um link com token aleatório.
+- `GET /api/orders?token=<token>`: abre uma comanda pelo link privado.
+- `POST /api/orders` com `action: "proof"`: anexa uma imagem JPEG otimizada à comanda e altera o status para `proof_submitted`.
+
+As comandas guardam uma cópia dos produtos e preços no momento do pedido. O token público é salvo como hash; o link funciona como uma credencial privada para abrir os dados e o comprovante. O comprovante fica armazenado no documento MongoDB com limite de 1,8 MB após compressão. O envio do comprovante não confirma o crédito: a loja ainda precisa conferir o pagamento no banco.
 
 As operações de escrita exigem `Authorization: Bearer <ADMIN_API_TOKEN>`. O cliente conserva a chave apenas em memória enquanto a página está aberta. A conexão MongoDB é reutilizada entre invocações e registrada com `attachDatabasePool`.
 

@@ -16,15 +16,28 @@ import {
 } from "react-native";
 import { GlassView } from "expo-glass-effect";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { ChevronLeft, ChevronRight, House, Minus, Plus, Search, ShoppingBag, ShoppingCart, Settings, Trash2, X } from "lucide-react-native";
+import { Check, ChevronLeft, ChevronRight, Copy, House, Minus, Plus, Search, ShoppingBag, ShoppingCart, Settings, Trash2, X } from "lucide-react-native";
 
 type PanelName = "search" | "cart" | "settings" | null;
 type ProductCategory = "adega" | "frigobar";
 type CategoryFilter = "todos" | ProductCategory;
 type Product = { id: string; name: string; label: string; price: string; description: string; tone: string; category: ProductCategory; imageUrl?: string };
+type OrderView = {
+  id: string;
+  customerName: string;
+  chaletNumber: string;
+  items: { productId: string; name: string; label: string; quantity: number; unitPrice: number; tone: string; imageUrl?: string }[];
+  subtotal: number;
+  notes: string;
+  status: "awaiting_proof" | "proof_submitted" | "confirmed";
+  proof?: { name: string; dataUrl: string; uploadedAt: string };
+  createdAt: string;
+};
 
 const HERO_IMAGE_URL = "https://r2.fivemanage.com/vLUsF9vzqBOo7DSFHERFX/CestadeVinhosMattoChals.png";
 const CART_STORAGE_KEY = "matto-chales-cart-v1";
+const PIX_KEY = "matto.corporativo@gmail.com";
+const WHATSAPP_NUMBER = "553187952587";
 
 function parsePrice(value?: string) {
   if (!value || value.toLocaleLowerCase().includes("consulte")) return null;
@@ -105,6 +118,18 @@ function SiteScreen() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [orderNotes, setOrderNotes] = useState("");
   const [cartHydrated, setCartHydrated] = useState(false);
+  const [checkoutName, setCheckoutName] = useState("");
+  const [checkoutChalet, setCheckoutChalet] = useState("");
+  const [checkoutError, setCheckoutError] = useState("");
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [currentOrder, setCurrentOrder] = useState<OrderView | null>(null);
+  const [orderToken, setOrderToken] = useState("");
+  const [orderLoading, setOrderLoading] = useState(false);
+  const [receiptDataUrl, setReceiptDataUrl] = useState("");
+  const [receiptFileName, setReceiptFileName] = useState("");
+  const [receiptBusy, setReceiptBusy] = useState(false);
+  const [receiptError, setReceiptError] = useState("");
+  const [pixCopied, setPixCopied] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [databaseMode, setDatabaseMode] = useState<"checking" | "local" | "connected">("checking");
   const [adminTokenInput, setAdminTokenInput] = useState("");
@@ -156,6 +181,22 @@ function SiteScreen() {
       // O carrinho continua disponível na sessão atual se o navegador bloquear o armazenamento local.
     }
   }, [cart, orderNotes, cartHydrated]);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+    const token = new URLSearchParams(window.location.search).get("comanda");
+    if (!token) return;
+    setOrderToken(token);
+    setOrderLoading(true);
+    fetch(`/api/orders?token=${encodeURIComponent(token)}`, { cache: "no-store" })
+      .then(async (response) => {
+        const result = await response.json() as OrderView | { error?: string };
+        if (!response.ok || "error" in result) throw new Error("Não foi possível abrir esta comanda.");
+        setCurrentOrder(result);
+      })
+      .catch((error) => setCheckoutError(error instanceof Error ? error.message : "Não foi possível abrir esta comanda."))
+      .finally(() => setOrderLoading(false));
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== "web") {
@@ -252,18 +293,180 @@ function SiteScreen() {
     });
   }
 
-  function sendOrderToWhatsApp() {
-    const lines = cartRows.map(({ name, quantity, lineTotal }) => `• ${quantity}x ${name} — ${lineTotal === null ? "preço a confirmar" : formatPrice(lineTotal)}`);
+  async function startComanda() {
+    if (!checkoutName.trim() || !checkoutChalet.trim()) {
+      setCheckoutError("Informe seu nome e o número do chalé para continuar.");
+      return;
+    }
+    if (cartRows.length === 0) {
+      setCheckoutError("Adicione produtos ao carrinho antes de continuar.");
+      return;
+    }
+    if (hasUnpricedItems) {
+      setCheckoutError("Há produtos sem preço definido. Peça à loja para atualizar o catálogo.");
+      return;
+    }
+    if (databaseMode !== "connected") {
+      setCheckoutError("A comanda precisa de conexão com o catálogo. Tente novamente em instantes.");
+      return;
+    }
+
+    setCheckoutBusy(true);
+    setCheckoutError("");
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName: checkoutName.trim(),
+          chaletNumber: checkoutChalet.trim(),
+          notes: orderNotes,
+          items: cartRows.map(({ product, quantity }) => ({ productId: product?.id, quantity })),
+        }),
+      });
+      const result = await response.json() as { token?: string; order?: OrderView; error?: string; product?: string };
+      if (!response.ok || !result.token || !result.order) {
+        if (result.error === "PRODUCT_PRICE_UNAVAILABLE") throw new Error(`O produto ${result.product ?? "selecionado"} está sem preço definido.`);
+        if (result.error === "MONGODB_NOT_CONFIGURED") throw new Error("Não foi possível conectar ao banco para criar a comanda.");
+        throw new Error("Não foi possível criar a comanda. Revise os dados e tente novamente.");
+      }
+      setOrderToken(result.token);
+      setCurrentOrder(result.order);
+      setReceiptDataUrl("");
+      setReceiptFileName("");
+      setReceiptError("");
+      setPixCopied(false);
+      setCart({});
+      setOrderNotes("");
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.history.replaceState({}, "", `${window.location.pathname}?comanda=${encodeURIComponent(result.token)}`);
+      }
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : "Erro ao criar a comanda.");
+    } finally {
+      setCheckoutBusy(false);
+    }
+  }
+
+  async function copyPixKey() {
+    try {
+      if (Platform.OS === "web" && typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(PIX_KEY);
+        setPixCopied(true);
+        setTimeout(() => setPixCopied(false), 2200);
+      }
+    } catch {
+      setCheckoutError("Não foi possível copiar automaticamente. Selecione e copie a chave Pix.");
+    }
+  }
+
+  function chooseReceiptImage() {
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/webp";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        setReceiptError("Selecione uma imagem do comprovante.");
+        return;
+      }
+      setReceiptError("");
+      const source = URL.createObjectURL(file);
+      const image = new window.Image();
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const context = canvas.getContext("2d");
+        if (!context) {
+          URL.revokeObjectURL(source);
+          setReceiptError("Não foi possível preparar essa imagem. Tente outra foto.");
+          return;
+        }
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(source);
+        canvas.toBlob((blob) => {
+          if (!blob || blob.size > 1_800_000) {
+            setReceiptError("A imagem ficou muito grande. Escolha uma foto mais leve.");
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result !== "string") {
+              setReceiptError("Não foi possível ler a imagem. Tente novamente.");
+              return;
+            }
+            setReceiptDataUrl(reader.result);
+            setReceiptFileName(file.name.slice(0, 120));
+          };
+          reader.onerror = () => setReceiptError("Não foi possível ler a imagem. Tente novamente.");
+          reader.readAsDataURL(blob);
+        }, "image/jpeg", .88);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(source);
+        setReceiptError("Não foi possível abrir essa imagem. Escolha outra foto.");
+      };
+      image.src = source;
+    };
+    input.click();
+  }
+
+  async function uploadReceipt() {
+    if (!orderToken || !receiptDataUrl) return;
+    setReceiptBusy(true);
+    setReceiptError("");
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "proof", token: orderToken, fileName: receiptFileName, dataUrl: receiptDataUrl }),
+      });
+      const result = await response.json() as OrderView | { error?: string };
+      if (!response.ok || "error" in result) throw new Error("Não foi possível anexar o comprovante à comanda.");
+      setCurrentOrder(result);
+      setReceiptDataUrl("");
+    } catch (error) {
+      setReceiptError(error instanceof Error ? error.message : "Não foi possível enviar o comprovante.");
+    } finally {
+      setReceiptBusy(false);
+    }
+  }
+
+  function sendComandaToWhatsApp() {
+    if (!currentOrder || !orderToken) return;
+    const comandaUrl = Platform.OS === "web" && typeof window !== "undefined"
+      ? `${window.location.origin}${window.location.pathname}?comanda=${encodeURIComponent(orderToken)}`
+      : `https://wine-shop-kohl.vercel.app/?comanda=${encodeURIComponent(orderToken)}`;
     const message = [
-      "Olá! Gostaria de fazer este pedido na Matto Chalés:",
-      "",
-      ...lines,
-      "",
-      `Subtotal: ${formatPrice(cartSubtotal)}${hasUnpricedItems ? " (há itens com preço a confirmar)" : ""}`,
-      "Entrega: a combinar",
-      orderNotes.trim() ? `Observações: ${orderNotes.trim()}` : "",
-    ].filter(Boolean).join("\n");
-    void Linking.openURL(`https://wa.me/?text=${encodeURIComponent(message)}`).catch(() => undefined);
+      "Olá! Segue meu pedido da Matto Chalés para conferência do Pix.",
+      `Comanda: ${currentOrder.id}`,
+      `Cliente: ${currentOrder.customerName}`,
+      `Chalé: ${currentOrder.chaletNumber}`,
+      `Total: ${formatPrice(currentOrder.subtotal)}`,
+      "Comprovante e itens do pedido: ",
+      comandaUrl,
+    ].join("\n");
+    void Linking.openURL(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`).catch(() => undefined);
+  }
+
+  function closeComanda() {
+    setCurrentOrder(null);
+    setOrderToken("");
+    setCheckoutError("");
+    setReceiptError("");
+    setCheckoutName("");
+    setCheckoutChalet("");
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+    setPanel(null);
+    setActive("home");
   }
 
   function openProductForm(product?: Product) {
@@ -562,6 +765,11 @@ function SiteScreen() {
                   </View>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Remover ${name} da sacola`} onPress={() => removeFromCart(name)} style={styles.cartDeleteButton}><Trash2 size={17} color="#b8a18c" /></Pressable>
                 </View>)}
+                <View style={styles.cartCheckoutFields}>
+                  <Text style={styles.cartNotesLabel}>Dados para a comanda</Text>
+                  <TextInput value={checkoutName} onChangeText={setCheckoutName} placeholder="Seu nome" placeholderTextColor="#94877b" style={styles.checkoutTextInput} accessibilityLabel="Seu nome" />
+                  <TextInput value={checkoutChalet} onChangeText={setCheckoutChalet} placeholder="Número do chalé" placeholderTextColor="#94877b" style={styles.checkoutTextInput} accessibilityLabel="Número do chalé" />
+                </View>
                 <View style={styles.cartNotesBlock}><Text style={styles.cartNotesLabel}>Observações para a loja <Text style={styles.cartOptional}>(opcional)</Text></Text><TextInput value={orderNotes} onChangeText={setOrderNotes} placeholder="Alguma preferência para este pedido?" placeholderTextColor="#94877b" multiline style={styles.cartNotesInput} accessibilityLabel="Observações para a loja" /></View>
               </ScrollView>
 
@@ -569,8 +777,41 @@ function SiteScreen() {
                 <View style={styles.cartSummaryLine}><Text style={styles.cartSummaryLabel}>Subtotal</Text><Text style={styles.cartSummaryValue}>{formatPrice(cartSubtotal)}{hasUnpricedItems ? "*" : ""}</Text></View>
                 <View style={styles.cartTotalLine}><Text style={styles.cartTotalLabel}>{hasUnpricedItems ? "Subtotal parcial" : "Total dos produtos"}</Text><Text style={styles.cartTotalValue}>{formatPrice(cartSubtotal)}{hasUnpricedItems ? "*" : ""}</Text></View>
                 {hasUnpricedItems && <Text style={styles.cartPriceDisclaimer}>* O preço de um ou mais itens será confirmado pela loja.</Text>}
-                <Pressable onPress={sendOrderToWhatsApp} style={styles.cartPrimaryButton}><Text style={styles.cartPrimaryButtonText}>Enviar pedido pelo WhatsApp</Text></Pressable>
-                <Text style={styles.cartCheckoutHint}>Você combinará entrega e pagamento diretamente com a loja.</Text>
+                {!!checkoutError && !currentOrder && <Text style={styles.checkoutError}>{checkoutError}</Text>}
+                <Pressable disabled={checkoutBusy} onPress={() => void startComanda()} style={[styles.cartPrimaryButton, checkoutBusy && styles.checkoutButtonDisabled]}><Text style={styles.cartPrimaryButtonText}>{checkoutBusy ? "Criando comanda…" : "Continuar para o Pix"}</Text></Pressable>
+                <Text style={styles.cartCheckoutHint}>Você pagará pela chave Pix e enviará o comprovante para conferência.</Text>
+              </View>
+            </>}
+          </View>
+        </View>}
+
+        {(orderLoading || currentOrder || (orderToken && checkoutError)) && <View style={[styles.comandaScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <View style={[styles.comandaContent, !isMobile && styles.comandaContentWide]}>
+            <View style={styles.comandaHeader}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja" onPress={closeComanda} style={styles.comandaBack}><ChevronLeft size={23} color="#d5a472" strokeWidth={2} /><Text style={styles.comandaBackText}>Loja</Text></Pressable>
+              <View style={styles.comandaHeaderTitle}><Text style={styles.comandaTitle}>Sua comanda</Text><Text style={styles.comandaSubtitle}>Pagamento via Pix</Text></View>
+            </View>
+            {orderLoading && <Text style={styles.comandaLoading}>Carregando comanda…</Text>}
+            {!orderLoading && !currentOrder && <View style={styles.comandaErrorState}><Text style={styles.comandaErrorText}>{checkoutError || "Não foi possível abrir esta comanda."}</Text><Pressable onPress={closeComanda} style={styles.comandaPrimaryButton}><Text style={styles.comandaPrimaryButtonText}>Voltar para a loja</Text></Pressable></View>}
+            {currentOrder && <>
+              <ScrollView style={styles.comandaScroll} contentContainerStyle={styles.comandaBody} keyboardShouldPersistTaps="handled">
+                <View style={styles.comandaOrderHeading}><View><Text style={styles.comandaOrderNumber}>{currentOrder.id}</Text><Text style={styles.comandaOrderMeta}>{currentOrder.customerName} · Chalé {currentOrder.chaletNumber}</Text></View><View style={styles.comandaStatus}><Text style={styles.comandaStatusText}>{currentOrder.status === "proof_submitted" ? "AGUARDANDO CONFERÊNCIA" : "AGUARDANDO PAGAMENTO"}</Text></View></View>
+                <View style={styles.comandaSection}><Text style={styles.comandaSectionTitle}>Resumo do pedido</Text>
+                  {currentOrder.items.map((item, index) => <View key={`${item.productId}-${index}`} style={styles.comandaItem}><View style={styles.comandaItemInfo}><Text style={styles.comandaItemName}>{item.quantity}× {item.label || item.name}</Text><Text style={styles.comandaItemUnit}>{formatPrice(item.unitPrice)} cada</Text></View><Text style={styles.comandaItemTotal}>{formatPrice(item.unitPrice * item.quantity)}</Text></View>)}
+                  {!!currentOrder.notes && <Text style={styles.comandaNotes}>Observações: {currentOrder.notes}</Text>}
+                  <View style={styles.comandaTotalRow}><Text style={styles.comandaTotalLabel}>Total do pedido</Text><Text style={styles.comandaTotalValue}>{formatPrice(currentOrder.subtotal)}</Text></View>
+                </View>
+                <View style={styles.pixCard}><Text style={styles.comandaSectionTitle}>Pague com Pix</Text><Text style={styles.pixInstructions}>Copie a chave abaixo e faça o pagamento no aplicativo do seu banco. Confira o valor de {formatPrice(currentOrder.subtotal)}.</Text><View style={styles.pixKeyRow}><Text selectable style={styles.pixKeyText}>{PIX_KEY}</Text><Pressable accessibilityRole="button" accessibilityLabel="Copiar chave Pix" onPress={() => void copyPixKey()} style={styles.pixCopyButton}>{pixCopied ? <Check size={17} color="#d5a472" /> : <Copy size={17} color="#d5a472" />}<Text style={styles.pixCopyText}>{pixCopied ? "Copiada" : "Copiar"}</Text></Pressable></View><Text style={styles.pixAccountHint}>Chave Pix por e-mail · Matto Chalés</Text></View>
+                <View style={styles.receiptCard}><Text style={styles.comandaSectionTitle}>Comprovante de pagamento</Text><Text style={styles.receiptInstructions}>Anexe uma imagem nítida do comprovante para enviar junto com esta comanda pelo WhatsApp.</Text>
+                  <Pressable accessibilityRole="button" onPress={chooseReceiptImage} style={styles.receiptChooseButton}><Text style={styles.receiptChooseButtonText}>{receiptDataUrl ? "Escolher outra imagem" : currentOrder.proof ? "Trocar comprovante" : "Anexar comprovante"}</Text></Pressable>
+                  {!!receiptDataUrl && <View style={styles.receiptPreview}><Image source={{ uri: receiptDataUrl }} style={styles.receiptPreviewImage} resizeMode="contain" accessibilityLabel="Prévia do comprovante selecionado" /><Text numberOfLines={1} style={styles.receiptFileName}>{receiptFileName}</Text><Pressable disabled={receiptBusy} onPress={() => void uploadReceipt()} style={[styles.receiptSubmitButton, receiptBusy && styles.checkoutButtonDisabled]}><Text style={styles.receiptSubmitText}>{receiptBusy ? "Anexando…" : "Anexar à comanda"}</Text></Pressable></View>}
+                  {!receiptDataUrl && currentOrder.proof && <View style={styles.receiptSaved}><Check size={16} color="#d5a472" /><Text style={styles.receiptSavedText}>Comprovante anexado: {currentOrder.proof.name}</Text></View>}
+                  {!!receiptError && <Text style={styles.checkoutError}>{receiptError}</Text>}
+                  <Text style={styles.receiptDisclaimer}>O comprovante não confirma o crédito. A loja verificará o pagamento no banco antes de confirmar o pedido.</Text>
+                </View>
+              </ScrollView>
+              <View style={styles.comandaFooter}>
+                {currentOrder.proof ? <Pressable accessibilityRole="button" onPress={sendComandaToWhatsApp} style={styles.comandaPrimaryButton}><Text style={styles.comandaPrimaryButtonText}>Enviar comanda pelo WhatsApp</Text></Pressable> : <Text style={styles.comandaFooterHint}>Anexe o comprovante para liberar o envio da comanda.</Text>}
               </View>
             </>}
           </View>
@@ -870,6 +1111,10 @@ const styles = StyleSheet.create({
   cartQuantity: { minWidth: 15, color: "#f3f1ef", textAlign: "center", fontSize: 12, fontWeight: "600" },
   cartDeleteButton: { width: 38, height: 40, alignItems: "center", justifyContent: "center" },
   cartNotesBlock: { gap: 9, marginTop: 22 },
+  cartCheckoutFields: { gap: 9, marginTop: 22 },
+  checkoutTextInput: { minHeight: 46, paddingHorizontal: 12, borderWidth: 1, borderColor: "#49372a", borderRadius: 8, color: "#fff", backgroundColor: "#15100c", fontSize: 16 },
+  checkoutError: { color: "#e7a080", fontSize: 11, lineHeight: 16 },
+  checkoutButtonDisabled: { opacity: .55 },
   cartNotesLabel: { color: "#e9e0d6", fontSize: 12, fontWeight: "600" },
   cartOptional: { color: "#9e9388", fontSize: 10, fontWeight: "400" },
   cartNotesInput: { minHeight: 72, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: "#49372a", borderRadius: 8, color: "#fff", backgroundColor: "#15100c", fontSize: 12, textAlignVertical: "top" },
@@ -884,6 +1129,59 @@ const styles = StyleSheet.create({
   cartPrimaryButton: { width: "100%", minHeight: 48, alignItems: "center", justifyContent: "center", paddingHorizontal: 18, paddingVertical: 13, borderRadius: 6, backgroundColor: "#765036" },
   cartPrimaryButtonText: { color: "#fff", fontSize: 13, fontWeight: "700", textAlign: "center" },
   cartCheckoutHint: { color: "#9e9388", fontSize: 10, lineHeight: 14, textAlign: "center" },
+  comandaScreen: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 35, alignItems: "stretch", paddingHorizontal: 18, backgroundColor: "#0d0b09" },
+  comandaContent: { flex: 1, width: "100%", alignSelf: "center" },
+  comandaContentWide: { maxWidth: 760 },
+  comandaHeader: { minHeight: 76, position: "relative", flexDirection: "row", alignItems: "center", justifyContent: "center", borderBottomWidth: 1, borderBottomColor: "#49372a" },
+  comandaBack: { position: "absolute", left: 0, zIndex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 4 },
+  comandaBackText: { color: "#d5a472", fontSize: 12, fontWeight: "600" },
+  comandaHeaderTitle: { alignItems: "center", gap: 2 },
+  comandaTitle: { color: "#f3f1ef", fontSize: 18, fontWeight: "700" },
+  comandaSubtitle: { color: "#a99a8b", fontSize: 10 },
+  comandaScroll: { flex: 1 },
+  comandaBody: { gap: 15, paddingVertical: 17, paddingBottom: 26 },
+  comandaOrderHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, paddingBottom: 13, borderBottomWidth: 1, borderBottomColor: "#33271e" },
+  comandaOrderNumber: { color: "#f3f1ef", fontSize: 15, fontWeight: "800" },
+  comandaOrderMeta: { marginTop: 4, color: "#bcb8b5", fontSize: 10 },
+  comandaStatus: { maxWidth: 150, paddingHorizontal: 9, paddingVertical: 7, borderWidth: 1, borderColor: "#775536", borderRadius: 14, backgroundColor: "#211810" },
+  comandaStatusText: { color: "#d5a472", fontSize: 8, fontWeight: "700", textAlign: "center", letterSpacing: .3 },
+  comandaSection: { gap: 11, padding: 14, borderWidth: 1, borderColor: "#33271e", borderRadius: 10, backgroundColor: "#120e0b" },
+  comandaSectionTitle: { color: "#f3f1ef", fontSize: 14, fontWeight: "700" },
+  comandaItem: { minHeight: 42, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: "#2a211a" },
+  comandaItemInfo: { flex: 1, gap: 3 },
+  comandaItemName: { color: "#eee5da", fontSize: 11, fontWeight: "600" },
+  comandaItemUnit: { color: "#95897e", fontSize: 9 },
+  comandaItemTotal: { color: "#d5a472", fontSize: 11, fontWeight: "700" },
+  comandaNotes: { color: "#bcb8b5", fontSize: 10, lineHeight: 15 },
+  comandaTotalRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 5 },
+  comandaTotalLabel: { color: "#f3f1ef", fontSize: 12, fontWeight: "700" },
+  comandaTotalValue: { color: "#d5a472", fontSize: 18, fontWeight: "800" },
+  pixCard: { gap: 11, padding: 14, borderWidth: 1, borderColor: "#775536", borderRadius: 10, backgroundColor: "#1b140e" },
+  pixInstructions: { color: "#c4bbb2", fontSize: 10, lineHeight: 16 },
+  pixKeyRow: { minHeight: 49, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, paddingLeft: 11, paddingRight: 5, borderWidth: 1, borderColor: "#49372a", borderRadius: 8, backgroundColor: "#100d0a" },
+  pixKeyText: { flex: 1, color: "#f3f1ef", fontSize: 12, fontWeight: "600" },
+  pixCopyButton: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 10, borderRadius: 6, backgroundColor: "#2b2118" },
+  pixCopyText: { color: "#d5a472", fontSize: 10, fontWeight: "700" },
+  pixAccountHint: { color: "#978a7e", fontSize: 9 },
+  receiptCard: { gap: 10, padding: 14, borderWidth: 1, borderColor: "#33271e", borderRadius: 10, backgroundColor: "#120e0b" },
+  receiptInstructions: { color: "#c4bbb2", fontSize: 10, lineHeight: 16 },
+  receiptChooseButton: { minHeight: 42, alignItems: "center", justifyContent: "center", paddingHorizontal: 12, borderWidth: 1, borderColor: "#775536", borderRadius: 7 },
+  receiptChooseButtonText: { color: "#d5a472", fontSize: 11, fontWeight: "700" },
+  receiptPreview: { gap: 9, alignItems: "center", padding: 10, borderRadius: 8, backgroundColor: "#0d0b09" },
+  receiptPreviewImage: { width: "100%", height: 230 },
+  receiptFileName: { width: "100%", color: "#bcb8b5", fontSize: 9, textAlign: "center" },
+  receiptSubmitButton: { width: "100%", minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 6, backgroundColor: "#765036" },
+  receiptSubmitText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+  receiptSaved: { minHeight: 38, flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 10, borderRadius: 6, backgroundColor: "#211810" },
+  receiptSavedText: { flex: 1, color: "#d5a472", fontSize: 10 },
+  receiptDisclaimer: { color: "#9e9388", fontSize: 9, lineHeight: 14 },
+  comandaFooter: { paddingVertical: 12, borderTopWidth: 1, borderTopColor: "#49372a", backgroundColor: "#0d0b09" },
+  comandaFooterHint: { color: "#9e9388", fontSize: 10, lineHeight: 16, textAlign: "center" },
+  comandaPrimaryButton: { minHeight: 48, alignItems: "center", justifyContent: "center", paddingHorizontal: 18, borderRadius: 7, backgroundColor: "#765036" },
+  comandaPrimaryButtonText: { color: "#fff", fontSize: 12, fontWeight: "700", textAlign: "center" },
+  comandaLoading: { marginTop: 30, color: "#c4bbb2", fontSize: 12, textAlign: "center" },
+  comandaErrorState: { flex: 1, justifyContent: "center", gap: 16 },
+  comandaErrorText: { color: "#e7a080", fontSize: 12, lineHeight: 18, textAlign: "center" },
   settingsScreen: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 20, alignItems: "stretch", paddingHorizontal: 22, backgroundColor: "#0d0b09" },
   settingsScreenPanel: { flex: 1, width: "100%", maxWidth: 980, alignSelf: "center", paddingTop: 18, paddingBottom: 16 },
   settingsScreenHeader: { minHeight: 74, flexDirection: "row", alignItems: "center", gap: 18, paddingBottom: 17, marginBottom: 18, borderBottomWidth: 1, borderBottomColor: "#49372a" },
