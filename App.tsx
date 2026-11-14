@@ -498,7 +498,7 @@ function SiteScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0d0b09" },
   appRoot: { flex: 1, backgroundColor: "#0d0b09" },
-  scrollContent: { paddingBottom: 140 },
+  scrollContent: { paddingBottom: 140, backgroundColor: "#2c1b12" },
   page: { width: "100%", alignSelf: "stretch", backgroundColor: "#0d0b09", overflow: "hidden" },
   pageMobile: { width: "100%" },
   header: { height: 72, paddingHorizontal: 28, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#49372a", flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: "#0d0b09" },
