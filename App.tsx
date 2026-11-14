@@ -674,7 +674,7 @@ const styles = StyleSheet.create({
   cartBackText: { color: "#d5a472", fontSize: 12, fontWeight: "600" },
   cartTitleRow: { position: "absolute", left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
   cartScreenTitle: { color: "#f3f1ef", fontSize: 16, fontWeight: "700" },
-  cartCountPill: { minWidth: 23, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 12, overflow: "hidden", color: "#21170f", backgroundColor: "#d5a472", textAlign: "center", fontSize: 11, fontWeight: "700" },
+  cartCountPill: { position: "absolute", right: 0, minWidth: 23, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 12, overflow: "hidden", color: "#21170f", backgroundColor: "#d5a472", textAlign: "center", fontSize: 11, fontWeight: "700" },
   cartEmpty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, paddingBottom: 45 },
   cartEmptyIcon: { width: 68, height: 68, alignItems: "center", justifyContent: "center", marginBottom: 20, borderRadius: 34, backgroundColor: "#211912" },
   cartEmptyTitle: { color: "#f3f1ef", fontSize: 21, fontWeight: "700", textAlign: "center" },
