@@ -138,7 +138,7 @@ function SiteScreen() {
   const shownProducts = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
     return products.filter((product) => product.name.toLocaleLowerCase().includes(normalized));
-  }, [query]);
+  }, [products, query]);
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
   const cartRows = Object.entries(cart).map(([name, quantity]) => {
     const product = products.find((item) => item.name === name);
