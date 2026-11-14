@@ -79,7 +79,7 @@ function isJpegDataUrl(value: unknown) {
 }
 
 async function uploadProofToFiveManage(dataUrl: string, orderNumber: string) {
-  const apiToken = process.env.FIVEMANAGE_API_TOKEN?.trim();
+  const apiToken = (process.env.FIVEMANAGE_API_TOKEN_IMAGEM || process.env.FIVEMANAGE_API_TOKEN)?.trim();
   if (!apiToken) return null;
 
   const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
