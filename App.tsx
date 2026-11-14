@@ -24,6 +24,7 @@ type CategoryFilter = "todos" | ProductCategory;
 type Product = { id: string; name: string; label: string; price: string; description: string; tone: string; category: ProductCategory; imageUrl?: string };
 
 const HERO_IMAGE_URL = "https://r2.fivemanage.com/vLUsF9vzqBOo7DSFHERFX/CestadeVinhosMattoChals.png";
+const CART_STORAGE_KEY = "matto-chales-cart-v1";
 
 function parsePrice(value?: string) {
   if (!value || value.toLocaleLowerCase().includes("consulte")) return null;
@@ -101,6 +102,7 @@ function SiteScreen() {
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<Record<string, number>>({});
   const [orderNotes, setOrderNotes] = useState("");
+  const [cartHydrated, setCartHydrated] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [databaseMode, setDatabaseMode] = useState<"checking" | "local" | "connected">("checking");
   const [adminTokenInput, setAdminTokenInput] = useState("");
@@ -118,6 +120,40 @@ function SiteScreen() {
   const [productTone, setProductTone] = useState("ivory");
   const [productImageUrl, setProductImageUrl] = useState("");
   const [productFormError, setProductFormError] = useState("");
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") {
+      setCartHydrated(true);
+      return;
+    }
+
+    try {
+      const savedCart = window.localStorage.getItem(CART_STORAGE_KEY);
+      if (savedCart) {
+        const parsed = JSON.parse(savedCart) as { items?: Record<string, unknown>; notes?: unknown };
+        const validItems = Object.fromEntries(
+          Object.entries(parsed.items ?? {}).filter((entry): entry is [string, number] =>
+            typeof entry[0] === "string" && typeof entry[1] === "number" && Number.isInteger(entry[1]) && entry[1] > 0,
+          ),
+        );
+        setCart(validItems);
+        if (typeof parsed.notes === "string") setOrderNotes(parsed.notes);
+      }
+    } catch {
+      window.localStorage.removeItem(CART_STORAGE_KEY);
+    } finally {
+      setCartHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!cartHydrated || Platform.OS !== "web" || typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify({ items: cart, notes: orderNotes }));
+    } catch {
+      // O carrinho continua disponível na sessão atual se o navegador bloquear o armazenamento local.
+    }
+  }, [cart, orderNotes, cartHydrated]);
 
   useEffect(() => {
     if (Platform.OS !== "web") {
