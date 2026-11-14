@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { GlassView } from "expo-glass-effect";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowLeft, House, Minus, Plus, Search, ShoppingBag, ShoppingCart, Settings, Trash2, X } from "lucide-react-native";
+import { ArrowLeft, ChevronLeft, ChevronRight, House, Minus, Plus, Search, ShoppingBag, ShoppingCart, Settings, Trash2, X } from "lucide-react-native";
 
 type PanelName = "search" | "cart" | "settings" | null;
 type Product = { id: string; name: string; label: string; price: string; description: string; tone: string; imageUrl?: string };
@@ -376,7 +376,7 @@ function SiteScreen() {
             </View>
 
             <View style={[styles.productsSection, isMobile && styles.productsSectionMobile]}>
-              <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>NOSSOS PRODUTOS</SectionTitle><View style={[styles.arrows, isMobile && styles.arrowsMobile]}><Text style={[styles.arrow, isMobile && styles.arrowMobile]}>‹</Text><Text style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}>›</Text></View></View>
+              <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>NOSSOS PRODUTOS</SectionTitle><View style={[styles.arrows, isMobile && styles.arrowsMobile]}><View style={[styles.arrow, isMobile && styles.arrowMobile]}><ChevronLeft size={15} color="#f2ece5" strokeWidth={2} /></View><View style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}><ChevronRight size={15} color="#f2ece5" strokeWidth={2} /></View></View></View>
               {isMobile
                 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.productGridMobile}>{productCards}</ScrollView>
                 : <View style={styles.productGrid}>{productCards}</View>}
@@ -550,8 +550,8 @@ const styles = StyleSheet.create({
   sectionTitleMobile: { fontSize: 18, lineHeight: 23, flexShrink: 1 },
   arrows: { marginLeft: "auto", flexDirection: "row", gap: 8 },
   arrowsMobile: { marginLeft: "auto", gap: 6 },
-  arrow: { width: 31, height: 31, textAlign: "center", textAlignVertical: "center", overflow: "hidden", borderWidth: 1, borderColor: "#8f7965", borderRadius: 18, color: "#f2ece5", fontSize: 22 },
-  arrowMobile: { width: 27, height: 27, fontSize: 19, lineHeight: 25 },
+  arrow: { width: 31, height: 31, alignItems: "center", justifyContent: "center", overflow: "hidden", borderWidth: 1, borderColor: "#8f7965", borderRadius: 18 },
+  arrowMobile: { width: 27, height: 27 },
   arrowActive: { borderColor: "#805739", backgroundColor: "#805739" },
   productGrid: { flexDirection: "row", gap: 16 },
   productGridMobile: { flexDirection: "row", gap: 12, paddingRight: 18 },
