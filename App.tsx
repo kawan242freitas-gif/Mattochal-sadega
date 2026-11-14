@@ -124,6 +124,7 @@ function SiteScreen() {
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [currentOrder, setCurrentOrder] = useState<OrderView | null>(null);
   const [orderToken, setOrderToken] = useState("");
+  const [orderViewMode, setOrderViewMode] = useState<"payment" | "final">("payment");
   const [orderLoading, setOrderLoading] = useState(false);
   const [receiptDataUrl, setReceiptDataUrl] = useState("");
   const [receiptFileName, setReceiptFileName] = useState("");
@@ -184,8 +185,11 @@ function SiteScreen() {
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof window === "undefined") return;
-    const token = new URLSearchParams(window.location.search).get("comanda");
+    const parameters = new URLSearchParams(window.location.search);
+    const isFinalOrder = parameters.has("pedido");
+    const token = parameters.get(isFinalOrder ? "pedido" : "comanda");
     if (!token) return;
+    setOrderViewMode(isFinalOrder ? "final" : "payment");
     setOrderToken(token);
     setOrderLoading(true);
     fetch(`/api/orders?token=${encodeURIComponent(token)}`, { cache: "no-store" })
@@ -331,6 +335,7 @@ function SiteScreen() {
         throw new Error("Não foi possível criar a comanda. Revise os dados e tente novamente.");
       }
       setOrderToken(result.token);
+      setOrderViewMode("payment");
       setCurrentOrder(result.order);
       setReceiptDataUrl("");
       setReceiptFileName("");
@@ -438,19 +443,17 @@ function SiteScreen() {
     }
   }
 
-  function sendComandaToWhatsApp() {
+  function sendFinalOrderToWhatsApp() {
     if (!currentOrder || !orderToken) return;
-    const comandaUrl = Platform.OS === "web" && typeof window !== "undefined"
-      ? `${window.location.origin}${window.location.pathname}?comanda=${encodeURIComponent(orderToken)}`
-      : `https://wine-shop-kohl.vercel.app/?comanda=${encodeURIComponent(orderToken)}`;
+    const finalOrderUrl = Platform.OS === "web" && typeof window !== "undefined"
+      ? `${window.location.origin}${window.location.pathname}?pedido=${encodeURIComponent(orderToken)}`
+      : `https://wine-shop-kohl.vercel.app/?pedido=${encodeURIComponent(orderToken)}`;
     const message = [
-      "Olá! Segue meu pedido da Matto Chalés para conferência do Pix.",
-      `Comanda: ${currentOrder.id}`,
+      "Olá! Segue meu pedido",
       `Cliente: ${currentOrder.customerName}`,
       `Chalé: ${currentOrder.chaletNumber}`,
-      `Total: ${formatPrice(currentOrder.subtotal)}`,
-      "Comprovante e itens do pedido: ",
-      comandaUrl,
+      "Comprovante e itens do pedido:",
+      finalOrderUrl,
     ].join("\n");
     void Linking.openURL(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`).catch(() => undefined);
   }
@@ -458,6 +461,7 @@ function SiteScreen() {
   function closeComanda() {
     setCurrentOrder(null);
     setOrderToken("");
+    setOrderViewMode("payment");
     setCheckoutError("");
     setReceiptError("");
     setCheckoutName("");
@@ -785,7 +789,7 @@ function SiteScreen() {
           </View>
         </View>}
 
-        {(orderLoading || currentOrder || (orderToken && checkoutError)) && <View style={[styles.comandaScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        {(orderLoading || currentOrder || (orderToken && checkoutError)) && orderViewMode === "payment" && <View style={[styles.comandaScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <View style={[styles.comandaContent, !isMobile && styles.comandaContentWide]}>
             <View style={styles.comandaHeader}>
               <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja" onPress={closeComanda} style={styles.comandaBack}><ChevronLeft size={23} color="#d5a472" strokeWidth={2} /><Text style={styles.comandaBackText}>Loja</Text></Pressable>
@@ -811,9 +815,24 @@ function SiteScreen() {
                 </View>
               </ScrollView>
               <View style={styles.comandaFooter}>
-                {currentOrder.proof ? <Pressable accessibilityRole="button" onPress={sendComandaToWhatsApp} style={styles.comandaPrimaryButton}><Text style={styles.comandaPrimaryButtonText}>Enviar comanda pelo WhatsApp</Text></Pressable> : <Text style={styles.comandaFooterHint}>Anexe o comprovante para liberar o envio da comanda.</Text>}
+                {currentOrder.proof ? <Pressable accessibilityRole="button" onPress={sendFinalOrderToWhatsApp} style={styles.comandaPrimaryButton}><Text style={styles.comandaPrimaryButtonText}>Enviar comanda pelo WhatsApp</Text></Pressable> : <Text style={styles.comandaFooterHint}>Anexe o comprovante para liberar o envio da comanda.</Text>}
               </View>
             </>}
+          </View>
+        </View>}
+
+        {(orderLoading || currentOrder || (orderToken && checkoutError)) && orderViewMode === "final" && <View style={[styles.finalOrderScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <View style={[styles.finalOrderContent, !isMobile && styles.comandaContentWide]}>
+            <View style={styles.finalOrderHeader}><Text style={styles.finalOrderTitle}>Resumo do pedido</Text></View>
+            {orderLoading && <Text style={styles.comandaLoading}>Carregando pedido…</Text>}
+            {!orderLoading && !currentOrder && <View style={styles.comandaErrorState}><Text style={styles.comandaErrorText}>{checkoutError || "Não foi possível abrir este pedido."}</Text></View>}
+            {currentOrder && <ScrollView style={styles.finalOrderScroll} contentContainerStyle={styles.finalOrderBody}>
+              <View style={styles.finalOrderItems}>
+                {currentOrder.items.map((item, index) => <View key={`${item.productId}-${index}`} style={styles.finalOrderItem}><Text style={styles.finalOrderItemName}>{item.quantity} × {item.label || item.name}</Text></View>)}
+              </View>
+              <View style={styles.finalOrderTotal}><Text style={styles.finalOrderTotalLabel}>Total</Text><Text style={styles.finalOrderTotalValue}>{formatPrice(currentOrder.subtotal)}</Text></View>
+              <View style={styles.finalOrderProof}><Text style={styles.finalOrderProofTitle}>Comprovante</Text>{currentOrder.proof ? <Image source={{ uri: currentOrder.proof.dataUrl }} style={styles.finalOrderProofImage} resizeMode="contain" accessibilityLabel="Prévia do comprovante anexado" /> : <Text style={styles.finalOrderProofMissing}>Nenhum comprovante anexado.</Text>}</View>
+            </ScrollView>}
           </View>
         </View>}
 
@@ -1182,6 +1201,22 @@ const styles = StyleSheet.create({
   comandaLoading: { marginTop: 30, color: "#c4bbb2", fontSize: 12, textAlign: "center" },
   comandaErrorState: { flex: 1, justifyContent: "center", gap: 16 },
   comandaErrorText: { color: "#e7a080", fontSize: 12, lineHeight: 18, textAlign: "center" },
+  finalOrderScreen: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 36, alignItems: "stretch", paddingHorizontal: 18, backgroundColor: "#0d0b09" },
+  finalOrderContent: { flex: 1, width: "100%", alignSelf: "center" },
+  finalOrderHeader: { minHeight: 76, alignItems: "center", justifyContent: "center", borderBottomWidth: 1, borderBottomColor: "#49372a" },
+  finalOrderTitle: { color: "#f3f1ef", fontSize: 18, fontWeight: "700" },
+  finalOrderScroll: { flex: 1 },
+  finalOrderBody: { gap: 20, paddingTop: 20, paddingBottom: 28 },
+  finalOrderItems: { gap: 2 },
+  finalOrderItem: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#33271e" },
+  finalOrderItemName: { flex: 1, color: "#f3f1ef", fontSize: 12, fontWeight: "600" },
+  finalOrderTotal: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: 7 },
+  finalOrderTotalLabel: { color: "#f3f1ef", fontSize: 14, fontWeight: "700" },
+  finalOrderTotalValue: { color: "#d5a472", fontSize: 20, fontWeight: "800" },
+  finalOrderProof: { gap: 11, paddingTop: 8 },
+  finalOrderProofTitle: { color: "#f3f1ef", fontSize: 13, fontWeight: "700" },
+  finalOrderProofImage: { width: "100%", height: 360, borderRadius: 8, backgroundColor: "#17110d" },
+  finalOrderProofMissing: { color: "#bcb8b5", fontSize: 11 },
   settingsScreen: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 20, alignItems: "stretch", paddingHorizontal: 22, backgroundColor: "#0d0b09" },
   settingsScreenPanel: { flex: 1, width: "100%", maxWidth: 980, alignSelf: "center", paddingTop: 18, paddingBottom: 16 },
   settingsScreenHeader: { minHeight: 74, flexDirection: "row", alignItems: "center", gap: 18, paddingBottom: 17, marginBottom: 18, borderBottomWidth: 1, borderBottomColor: "#49372a" },
