@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { GlassView } from "expo-glass-effect";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { ArrowLeft, ChevronLeft, ChevronRight, House, Minus, Plus, Search, ShoppingBag, ShoppingCart, Settings, Trash2, X } from "lucide-react-native";
+import { ChevronLeft, ChevronRight, House, Minus, Plus, Search, ShoppingBag, ShoppingCart, Settings, Trash2, X } from "lucide-react-native";
 
 type PanelName = "search" | "cart" | "settings" | null;
 type Product = { id: string; name: string; label: string; price: string; description: string; tone: string; imageUrl?: string };
@@ -396,8 +396,8 @@ function SiteScreen() {
         {panel === "cart" && <View style={[styles.cartScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <View style={[styles.cartContent, !isMobile && styles.cartContentWide]}>
             <View style={styles.cartScreenHeader}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja" onPress={() => { setPanel(null); setActive("home"); }} style={styles.cartBackButton}><ArrowLeft size={20} color="#d5a472" /><Text style={styles.cartBackText}>Continuar comprando</Text></Pressable>
-              <View style={styles.cartTitleRow}><ShoppingBag size={21} color="#d5a472" /><Text style={styles.cartScreenTitle}>Sua sacola</Text>{cartCount > 0 && <Text style={styles.cartCountPill}>{cartCount}</Text>}</View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja" onPress={() => { setPanel(null); setActive("home"); }} style={styles.cartBackButton}><ChevronLeft size={24} color="#d5a472" strokeWidth={2} /><Text style={styles.cartBackText}>Voltar</Text></Pressable>
+              <View pointerEvents="none" style={styles.cartTitleRow}><ShoppingBag size={21} color="#d5a472" /><Text style={styles.cartScreenTitle}>Sua sacola</Text>{cartCount > 0 && <Text style={styles.cartCountPill}>{cartCount}</Text>}</View>
             </View>
 
             {cartRows.length === 0 ? <View style={styles.cartEmpty}>
@@ -626,10 +626,10 @@ const styles = StyleSheet.create({
   cartScreen: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 20, alignItems: "stretch", paddingHorizontal: 18, backgroundColor: "#0d0b09" },
   cartContent: { flex: 1, width: "100%", alignSelf: "center" },
   cartContentWide: { maxWidth: 860 },
-  cartScreenHeader: { minHeight: 76, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderBottomWidth: 1, borderBottomColor: "#49372a" },
-  cartBackButton: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8, paddingRight: 6 },
+  cartScreenHeader: { minHeight: 76, position: "relative", flexDirection: "row", alignItems: "center", justifyContent: "center", borderBottomWidth: 1, borderBottomColor: "#49372a" },
+  cartBackButton: { position: "absolute", left: 0, zIndex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 5, paddingRight: 6 },
   cartBackText: { color: "#d5a472", fontSize: 12, fontWeight: "600" },
-  cartTitleRow: { flexDirection: "row", alignItems: "center", gap: 9 },
+  cartTitleRow: { position: "absolute", left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
   cartScreenTitle: { color: "#f3f1ef", fontSize: 21, fontWeight: "700" },
   cartCountPill: { minWidth: 23, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 12, overflow: "hidden", color: "#21170f", backgroundColor: "#d5a472", textAlign: "center", fontSize: 11, fontWeight: "700" },
   cartEmpty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, paddingBottom: 45 },
