@@ -164,8 +164,6 @@ function SiteScreen() {
 
   function addToCart(name: string) {
     setCart((current) => ({ ...current, [name]: (current[name] ?? 0) + 1 }));
-    setActive("cart");
-    setPanel("cart");
   }
 
   function removeFromCart(name: string) {
