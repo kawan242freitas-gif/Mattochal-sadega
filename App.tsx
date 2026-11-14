@@ -409,7 +409,7 @@ function SiteScreen() {
           <View style={[styles.cartContent, !isMobile && styles.cartContentWide]}>
             <View style={styles.cartScreenHeader}>
               <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja" onPress={() => { setPanel(null); setActive("home"); }} style={styles.cartBackButton}><ChevronLeft size={24} color="#d5a472" strokeWidth={2} /><Text style={styles.cartBackText}>Voltar</Text></Pressable>
-              <View pointerEvents="none" style={styles.cartTitleRow}><ShoppingBag size={21} color="#d5a472" /><Text style={styles.cartScreenTitle}>Carrinho</Text>{cartCount > 0 && <Text style={styles.cartCountPill}>{cartCount}</Text>}</View>
+              <View pointerEvents="none" style={styles.cartTitleRow}><Text style={styles.cartScreenTitle}>Carrinho</Text>{cartCount > 0 && <Text style={styles.cartCountPill}>{cartCount}</Text>}<ShoppingBag size={18} color="#d5a472" /></View>
             </View>
 
             {cartRows.length === 0 ? <View style={styles.cartEmpty}>
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   cartBackButton: { position: "absolute", left: 0, zIndex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 5, paddingRight: 6 },
   cartBackText: { color: "#d5a472", fontSize: 12, fontWeight: "600" },
   cartTitleRow: { position: "absolute", left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
-  cartScreenTitle: { color: "#f3f1ef", fontSize: 21, fontWeight: "700" },
+  cartScreenTitle: { color: "#f3f1ef", fontSize: 12, fontWeight: "700" },
   cartCountPill: { minWidth: 23, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 12, overflow: "hidden", color: "#21170f", backgroundColor: "#d5a472", textAlign: "center", fontSize: 11, fontWeight: "700" },
   cartEmpty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, paddingBottom: 45 },
   cartEmptyIcon: { width: 68, height: 68, alignItems: "center", justifyContent: "center", marginBottom: 20, borderRadius: 34, backgroundColor: "#211912" },
