@@ -31,14 +31,14 @@ document.querySelectorAll("[data-close-panel]").forEach((button) => {
 menuToggle?.addEventListener("click", () => {
   const isOpen = menuToggle.getAttribute("aria-expanded") === "true";
   menuToggle.setAttribute("aria-expanded", String(!isOpen));
-  menuToggle.setAttribute("aria-label", isOpen ? "Open navigation" : "Close navigation");
+  menuToggle.setAttribute("aria-label", isOpen ? "Abrir navegação" : "Fechar navegação");
   menu?.classList.toggle("is-open", !isOpen);
 });
 
 menu?.querySelectorAll("a").forEach((link) => {
   link.addEventListener("click", () => {
     menuToggle?.setAttribute("aria-expanded", "false");
-    menuToggle?.setAttribute("aria-label", "Open navigation");
+    menuToggle?.setAttribute("aria-label", "Abrir navegação");
     menu?.classList.remove("is-open");
   });
 });
@@ -60,7 +60,7 @@ searchInput?.addEventListener("input", () => {
   if (searchStatus) {
     searchStatus.textContent = query
       ? visibleCount ? `${visibleCount} produto${visibleCount === 1 ? "" : "s"} encontrado${visibleCount === 1 ? "" : "s"}.` : "Nenhum vinho encontrado."
-      : "Sparkling, fortified ou aromatized wine";
+      : "Espumante, fortificado ou aromatizado";
   }
 });
 

@@ -21,15 +21,15 @@ type PanelName = "search" | "cart" | "settings" | null;
 type Product = { id: string; name: string; label: string; price: string; description: string; tone: string; imageUrl?: string };
 
 const initialProducts: Product[] = [
-  { id: "sparkling-wine", name: "Sparkling wine", label: "SPARKLING WINE", price: "R$ 89,90", description: "Espumante selecionado para brindar bons momentos.", tone: "gold" },
-  { id: "fortified-wine", name: "Fortified wine", label: "FORTIFIED WINE", price: "R$ 119,90", description: "Vinho encorpado, com aroma marcante e final elegante.", tone: "ivory" },
-  { id: "aromatized-wine", name: "Aromatized wine", label: "AROMATIZED WINE", price: "R$ 69,90", description: "Uma bebida aromática para apreciar em boa companhia.", tone: "olive" },
+  { id: "sparkling-wine", name: "Vinho espumante", label: "VINHO ESPUMANTE", price: "R$ 89,90", description: "Espumante selecionado para brindar bons momentos.", tone: "gold" },
+  { id: "fortified-wine", name: "Vinho fortificado", label: "VINHO FORTIFICADO", price: "R$ 119,90", description: "Vinho encorpado, com aroma marcante e final elegante.", tone: "ivory" },
+  { id: "aromatized-wine", name: "Vinho aromatizado", label: "VINHO AROMATIZADO", price: "R$ 69,90", description: "Uma bebida aromática para apreciar em boa companhia.", tone: "olive" },
 ];
 
 const HERO_IMAGE_URL = "https://r2.fivemanage.com/vLUsF9vzqBOo7DSFHERFX/CestadeVinhosMattoChals.png";
 
 const navItems = [
-  { id: "home", label: "Home", Icon: House },
+  { id: "home", label: "Início", Icon: House },
   { id: "search", label: "Buscar", Icon: Search },
   { id: "cart", label: "Carrinho", Icon: ShoppingCart },
   { id: "settings", label: "Configurações", Icon: Settings },
@@ -320,7 +320,7 @@ function SiteScreen() {
             </View>
 
             <View style={[styles.productsSection, isMobile && styles.productsSectionMobile]}>
-              <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>OUR PRODUCT</SectionTitle><View style={[styles.arrows, isMobile && styles.arrowsMobile]}><Text style={[styles.arrow, isMobile && styles.arrowMobile]}>‹</Text><Text style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}>›</Text></View></View>
+              <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>NOSSOS PRODUTOS</SectionTitle><View style={[styles.arrows, isMobile && styles.arrowsMobile]}><Text style={[styles.arrow, isMobile && styles.arrowMobile]}>‹</Text><Text style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}>›</Text></View></View>
               {isMobile
                 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.productGridMobile}>{productCards}</ScrollView>
                 : <View style={styles.productGrid}>{productCards}</View>}
@@ -329,39 +329,39 @@ function SiteScreen() {
 
             <View style={[styles.feature, isMobile && styles.featureMobile]}>
               <View style={[styles.featureArt, isMobile && styles.featureArtMobile]}><WineBottle small /></View>
-              <View style={[styles.featureCopy, isMobile && styles.featureCopyMobile]}><Text style={[styles.featureTitle, isMobile && styles.featureTitleMobile]}>FIND YOUR PERFECT{"\n"}POUR</Text><BodyCopy>...</BodyCopy><BodyCopy>...</BodyCopy></View>
+              <View style={[styles.featureCopy, isMobile && styles.featureCopyMobile]}><Text style={[styles.featureTitle, isMobile && styles.featureTitleMobile]}>ENCONTRE O{"\n"}VINHO IDEAL</Text><BodyCopy>...</BodyCopy><BodyCopy>...</BodyCopy></View>
             </View>
 
             <View style={[styles.stats, isMobile && styles.statsMobile]}>
-              {[["30+", "YEARS OF EXPERIENCE"], ["100+", "PRODUCT NEW"], ["2K+", "HAPPY CLIENT"], ["80+", "COUNTRY BRANCH"]].map(([value, label]) => (
+              {[["30+", "ANOS DE EXPERIÊNCIA"], ["100+", "NOVOS PRODUTOS"], ["2K+", "CLIENTES SATISFEITOS"], ["80+", "FILIAIS PELO MUNDO"]].map(([value, label]) => (
                 <View style={[styles.stat, isMobile && styles.statMobile]} key={value}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>
               ))}
             </View>
 
             <View style={[styles.testimonials, isMobile && styles.testimonialsMobile]}>
-              <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>WHAT OUR CLIENT SAY{"\n"}OUR PRODUCT</SectionTitle><View style={[styles.arrows, isMobile && styles.arrowsMobile]}><Text style={[styles.arrow, isMobile && styles.arrowMobile]}>‹</Text><Text style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}>›</Text></View></View>
+              <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>O QUE NOSSOS CLIENTES DIZEM{"\n"}SOBRE NOSSOS PRODUTOS</SectionTitle><View style={[styles.arrows, isMobile && styles.arrowsMobile]}><Text style={[styles.arrow, isMobile && styles.arrowMobile]}>‹</Text><Text style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}>›</Text></View></View>
               <View style={[styles.quoteGrid, isMobile && styles.quoteGridMobile]}>
-                {[0, 1].map((id) => <View style={[styles.quoteCard, isMobile && styles.quoteCardMobile]} key={id}><Text style={styles.quoteMark}>“</Text><BodyCopy style={styles.quoteCopy}>...</BodyCopy><Text style={styles.quoteName}>CLIENT - <Text style={styles.redText}>...</Text></Text><View style={styles.avatar} /></View>)}
+                {[0, 1].map((id) => <View style={[styles.quoteCard, isMobile && styles.quoteCardMobile]} key={id}><Text style={styles.quoteMark}>“</Text><BodyCopy style={styles.quoteCopy}>...</BodyCopy><Text style={styles.quoteName}>CLIENTE - <Text style={styles.redText}>...</Text></Text><View style={styles.avatar} /></View>)}
               </View>
             </View>
 
             <View style={[styles.campaign, isMobile && styles.campaignMobile]}>
               <View style={styles.campaignBottles}><View style={styles.shadowBottle} /><View style={[styles.shadowBottle, styles.shadowBottleCenter]} /><View style={[styles.shadowBottle, styles.shadowBottleRight]} /></View>
               <Text style={styles.campaignYearSmall}>2023</Text>
-              <Text style={styles.campaignTitle}>NEW WINE PRODUCTS</Text>
+              <Text style={styles.campaignTitle}>NOVIDADES EM VINHOS</Text>
               <Text style={[styles.campaignYear, isMobile && styles.campaignYearMobile, isSmallMobile && styles.campaignYearSmallMobile]}>2023</Text>
               <View style={[styles.campaignBottle, isMobile && styles.campaignBottleMobile]}><WineBottle small /></View>
             </View>
 
             <View style={[styles.cta, isMobile && styles.ctaMobile]}>
               <View><Text style={styles.ctaTitle}>ADICIONE À SUA SACOLA</Text><BodyCopy style={styles.ctaCopy}>...</BodyCopy></View>
-              <Pressable onPress={() => addToCart("Wine dreams")} style={styles.ctaButton}><Text style={styles.ctaButtonText}>Adicionar à Sacola</Text></Pressable>
+              <Pressable onPress={() => addToCart("Seleção Matto Chalés")} style={styles.ctaButton}><Text style={styles.ctaButtonText}>Adicionar à Sacola</Text></Pressable>
             </View>
 
             <View style={[styles.footer, isMobile && styles.footerMobile]}>
               <View style={[styles.footerColumn, isMobile && styles.footerAboutMobile]}><Text style={styles.footerBrand}>Matto Chalés</Text><BodyCopy>...</BodyCopy><Text style={styles.social}>◉  ◎  ◌  ◉</Text></View>
-              <View style={[styles.footerColumn, isMobile && styles.footerColumnMobile]}><Text style={styles.footerHeading}>QUICK LINK</Text><Text style={styles.footerLink}>Home</Text><Text style={styles.footerLink}>Our product</Text><Text style={styles.footerLink}>Testimonial</Text><Text style={styles.footerLink}>Contact us</Text></View>
-              <View style={[styles.footerColumn, isMobile && styles.footerColumnMobile]}><Text style={styles.footerHeading}>CONTACT US</Text><Text style={styles.footerLink}>⌖  ...</Text><Text style={styles.footerLink}>☎  ...</Text><Text style={styles.footerLink}>✉  ...</Text></View>
+              <View style={[styles.footerColumn, isMobile && styles.footerColumnMobile]}><Text style={styles.footerHeading}>LINKS RÁPIDOS</Text><Text style={styles.footerLink}>Início</Text><Text style={styles.footerLink}>Produtos</Text><Text style={styles.footerLink}>Depoimentos</Text><Text style={styles.footerLink}>Contato</Text></View>
+              <View style={[styles.footerColumn, isMobile && styles.footerColumnMobile]}><Text style={styles.footerHeading}>CONTATO</Text><Text style={styles.footerLink}>⌖  ...</Text><Text style={styles.footerLink}>☎  ...</Text><Text style={styles.footerLink}>✉  ...</Text></View>
             </View>
             <Text style={styles.copyright}>...</Text>
           </View>
@@ -381,7 +381,7 @@ function SiteScreen() {
                   <Pressable accessibilityLabel="Fechar painel" onPress={() => setPanel(null)}><Text style={styles.panelClose}>×</Text></Pressable>
                 </View>
               )}
-              {panel === "search" && <><TextInput value={query} onChangeText={setQuery} placeholder="Digite um vinho..." placeholderTextColor="#9e9388" style={styles.searchInput} autoFocus /><Text style={styles.panelHint}>Sparkling, fortified ou aromatized wine</Text></>}
+              {panel === "search" && <><TextInput value={query} onChangeText={setQuery} placeholder="Digite um vinho..." placeholderTextColor="#9e9388" style={styles.searchInput} autoFocus /><Text style={styles.panelHint}>Espumante, fortificado ou aromatizado</Text></>}
               {panel === "cart" && (cartCount === 0 ? <Text style={styles.panelHint}>Seu carrinho está vazio.</Text> : <View style={styles.cartList}>{Object.entries(cart).map(([name, quantity]) => <View style={styles.cartItem} key={name}><Text style={styles.cartItemName}>{name} × {quantity}</Text><Pressable onPress={() => removeFromCart(name)}><Text style={styles.removeItem}>Remover</Text></Pressable></View>)}<Pressable onPress={() => setPanel(null)} style={styles.primaryButton}><Text style={styles.buttonText}>Falar com a loja</Text></Pressable></View>)}
               {panel === "settings" && (productFormOpen ? (
                 <ScrollView style={[styles.adminScroll, styles.adminScrollFull]} contentContainerStyle={styles.adminForm} keyboardShouldPersistTaps="handled">
