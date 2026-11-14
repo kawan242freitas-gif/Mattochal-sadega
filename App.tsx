@@ -52,8 +52,8 @@ const webGlassStyle = Platform.OS === "web"
     } as ViewStyle)
   : undefined;
 
-function BodyCopy({ children = "...", style }: { children?: React.ReactNode; style?: object }) {
-  return <Text style={[styles.bodyCopy, style]}>{children}</Text>;
+function BodyCopy({ children = "...", style, numberOfLines }: { children?: React.ReactNode; style?: object; numberOfLines?: number }) {
+  return <Text numberOfLines={numberOfLines} style={[styles.bodyCopy, style]}>{children}</Text>;
 }
 
 function WineBottle({ tone = "ivory", small = false }: { tone?: string; small?: boolean }) {
@@ -322,11 +322,11 @@ function SiteScreen() {
   const canManageProducts = databaseMode === "local" || (databaseMode === "connected" && adminUnlocked);
   const productCards = shownProducts.map((product) => (
     <View style={[styles.productCard, { width: productCardWidth }, isMobile && styles.productCardMobile]} key={product.id}>
-      <Text style={styles.cardTitle}>{product.label}</Text>
+      <Text numberOfLines={2} style={styles.cardTitle}>{product.label}</Text>
       <View style={[styles.productBottle, isMobile && styles.productBottleMobile]}>{product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.productPhoto} resizeMode="contain" accessibilityLabel={`Foto de ${product.name}`} /> : <WineBottle tone={product.tone} small />}</View>
-      <BodyCopy style={styles.productDescription}>{product.description}</BodyCopy>
+      <BodyCopy numberOfLines={isMobile ? 4 : 5} style={[styles.productDescription, isMobile && styles.productDescriptionMobile]}>{product.description}</BodyCopy>
       <Text style={styles.stars}>★★★★★</Text>
-      <View style={styles.cardBottom}><Text style={styles.cardPrice}>{product.price}</Text><Pressable onPress={() => addToCart(product.name)} style={[styles.primaryButton, styles.tinyButton]}><Text style={styles.tinyButtonText}>Adicionar à Sacola</Text></Pressable></View>
+      <View style={styles.cardBottom}><Text style={styles.cardPrice}>{product.price}</Text><Pressable onPress={() => addToCart(product.name)} style={[styles.primaryButton, styles.tinyButton]}><Text style={styles.tinyButtonText}>Adicionar ao Carrinho</Text></Pressable></View>
     </View>
   ));
   const renderAdminProductRows = (items: Product[]) => items.length
@@ -566,15 +566,16 @@ const styles = StyleSheet.create({
   arrowActive: { borderColor: "#805739", backgroundColor: "#805739" },
   productGrid: { flexDirection: "row", gap: 16 },
   productGridMobile: { flexDirection: "row", gap: 12, paddingRight: 18 },
-  productCard: { flex: 0, minWidth: 0, alignItems: "center", padding: 15, borderWidth: 1, borderColor: "#49372a", backgroundColor: "#19130f" },
-  productCardMobile: { width: 245, flex: 0, flexBasis: "auto", flexShrink: 0, padding: 14 },
-  cardTitle: { minHeight: 34, color: "#f2ece5", fontSize: 14, fontWeight: "700", textAlign: "center" },
+  productCard: { height: 380, flex: 0, minWidth: 0, alignItems: "center", padding: 15, borderWidth: 1, borderColor: "#49372a", backgroundColor: "#19130f" },
+  productCardMobile: { width: 245, height: 403, flex: 0, flexBasis: "auto", flexShrink: 0, padding: 14 },
+  cardTitle: { width: "100%", minHeight: 34, color: "#f2ece5", fontSize: 14, fontWeight: "700", textAlign: "center" },
   productBottle: { width: "100%", height: 160, alignItems: "center", justifyContent: "center", marginTop: 2 },
   productBottleMobile: { height: 210, justifyContent: "center" },
   productPhoto: { width: "100%", height: "100%" },
-  productDescription: { minHeight: 40, textAlign: "center", fontSize: 9, lineHeight: 14 },
+  productDescription: { height: 70, textAlign: "center", fontSize: 9, lineHeight: 14 },
+  productDescriptionMobile: { height: 56 },
   stars: { color: "#d6b078", fontSize: 10, letterSpacing: 1, marginVertical: 8 },
-  cardBottom: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 5 },
+  cardBottom: { width: "100%", minHeight: 36, marginTop: "auto", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 5 },
   cardPrice: { color: "#d5a472", fontSize: 12, fontWeight: "700" },
   tinyButton: { paddingHorizontal: 9, paddingVertical: 8 },
   tinyButtonText: { color: "#fff", fontSize: 9, fontWeight: "700" },
