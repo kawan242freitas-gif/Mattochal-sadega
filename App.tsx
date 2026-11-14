@@ -30,7 +30,7 @@ type OrderView = {
   subtotal: number;
   notes: string;
   status: "awaiting_proof" | "proof_submitted" | "confirmed";
-  proof?: { name: string; dataUrl: string; uploadedAt: string };
+  proof?: { name: string; dataUrl?: string; url?: string; storage?: "fivemanage" | "mongodb"; uploadedAt: string };
   createdAt: string;
 };
 
@@ -433,7 +433,10 @@ function SiteScreen() {
         body: JSON.stringify({ action: "proof", token: orderToken, fileName: receiptFileName, dataUrl: receiptDataUrl }),
       });
       const result = await response.json() as OrderView | { error?: string };
-      if (!response.ok || "error" in result) throw new Error("Não foi possível anexar o comprovante à comanda.");
+      if (!response.ok || "error" in result) {
+        if ("error" in result && result.error === "FIVEMANAGE_UPLOAD_FAILED") throw new Error("Não foi possível enviar a imagem ao FiveManage. Tente novamente em instantes.");
+        throw new Error("Não foi possível anexar o comprovante à comanda.");
+      }
       setCurrentOrder(result);
       setReceiptDataUrl("");
     } catch (error) {
@@ -809,7 +812,7 @@ function SiteScreen() {
                 <View style={styles.receiptCard}><Text style={styles.comandaSectionTitle}>Comprovante de pagamento</Text><Text style={styles.receiptInstructions}>Anexe uma imagem nítida do comprovante para enviar junto com esta comanda pelo WhatsApp.</Text>
                   <Pressable accessibilityRole="button" onPress={chooseReceiptImage} style={styles.receiptChooseButton}><Text style={styles.receiptChooseButtonText}>{receiptDataUrl ? "Escolher outra imagem" : currentOrder.proof ? "Trocar comprovante" : "Anexar comprovante"}</Text></Pressable>
                   {!!receiptDataUrl && <View style={styles.receiptPreview}><Image source={{ uri: receiptDataUrl }} style={styles.receiptPreviewImage} resizeMode="contain" accessibilityLabel="Prévia do comprovante selecionado" /><Text numberOfLines={1} style={styles.receiptFileName}>{receiptFileName}</Text><Pressable disabled={receiptBusy} onPress={() => void uploadReceipt()} style={[styles.receiptSubmitButton, receiptBusy && styles.checkoutButtonDisabled]}><Text style={styles.receiptSubmitText}>{receiptBusy ? "Anexando…" : "Anexar à comanda"}</Text></Pressable></View>}
-                  {!receiptDataUrl && currentOrder.proof && <View style={styles.receiptSaved}><Check size={16} color="#d5a472" /><Text style={styles.receiptSavedText}>Comprovante anexado: {currentOrder.proof.name}</Text></View>}
+                  {!receiptDataUrl && currentOrder.proof && <View style={styles.receiptSaved}><Check size={16} color="#d5a472" /><Text style={styles.receiptSavedText}>{currentOrder.proof.storage === "fivemanage" ? "Foto salva no FiveManage" : "Foto salva no banco de dados"}</Text></View>}
                   {!!receiptError && <Text style={styles.checkoutError}>{receiptError}</Text>}
                   <Text style={styles.receiptDisclaimer}>O comprovante não confirma o crédito. A loja verificará o pagamento no banco antes de confirmar o pedido.</Text>
                 </View>
@@ -831,7 +834,7 @@ function SiteScreen() {
                 {currentOrder.items.map((item, index) => <View key={`${item.productId}-${index}`} style={styles.finalOrderItem}><Text style={styles.finalOrderItemName}>{item.quantity} × {item.label || item.name}</Text></View>)}
               </View>
               <View style={styles.finalOrderTotal}><Text style={styles.finalOrderTotalLabel}>Total</Text><Text style={styles.finalOrderTotalValue}>{formatPrice(currentOrder.subtotal)}</Text></View>
-              <View style={styles.finalOrderProof}><Text style={styles.finalOrderProofTitle}>Comprovante</Text>{currentOrder.proof ? <Image source={{ uri: currentOrder.proof.dataUrl }} style={styles.finalOrderProofImage} resizeMode="contain" accessibilityLabel="Prévia do comprovante anexado" /> : <Text style={styles.finalOrderProofMissing}>Nenhum comprovante anexado.</Text>}</View>
+              <View style={styles.finalOrderProof}><Text style={styles.finalOrderProofTitle}>Comprovante</Text>{currentOrder.proof?.url || currentOrder.proof?.dataUrl ? <Image source={{ uri: currentOrder.proof.url || currentOrder.proof.dataUrl }} style={styles.finalOrderProofImage} resizeMode="contain" accessibilityLabel="Prévia do comprovante anexado" /> : <Text style={styles.finalOrderProofMissing}>Nenhum comprovante anexado.</Text>}</View>
             </ScrollView>}
           </View>
         </View>}

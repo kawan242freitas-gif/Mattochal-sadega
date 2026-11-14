@@ -7,6 +7,7 @@ Cadastre estas variáveis no projeto da Vercel. Para desenvolvimento local, copi
 - `MONGODB_URI`: string de conexão do MongoDB Atlas.
 - `MONGODB_DB`: nome do banco; o padrão é `matto-chales`.
 - `ADMIN_API_TOKEN`: chave longa e aleatória usada para autorizar gravações.
+- `FIVEMANAGE_API_TOKEN` (opcional): chave privada de upload de mídia. Quando configurada, os comprovantes vão para o FiveManage e o MongoDB guarda a URL e o identificador do arquivo junto da comanda. Sem ela, o comprovante permanece armazenado no próprio MongoDB.
 
 Não coloque valores reais em arquivos versionados nem em código executado no navegador.
 
@@ -21,7 +22,7 @@ Não coloque valores reais em arquivos versionados nem em código executado no n
 - `GET /api/orders?token=<token>`: abre uma comanda pelo link privado.
 - `POST /api/orders` com `action: "proof"`: anexa uma imagem JPEG otimizada à comanda e altera o status para `proof_submitted`.
 
-As comandas guardam uma cópia dos produtos e preços no momento do pedido. O token público é salvo como hash; o link funciona como uma credencial privada para abrir os dados e o comprovante. O comprovante fica armazenado no documento MongoDB com limite de 1,8 MB após compressão. O envio do comprovante não confirma o crédito: a loja ainda precisa conferir o pagamento no banco.
+As comandas guardam uma cópia dos produtos e preços no momento do pedido. O token público é salvo como hash; o link funciona como uma credencial privada para abrir os dados e o comprovante. Sem `FIVEMANAGE_API_TOKEN`, a imagem JPEG fica armazenada no documento MongoDB com limite de 1,8 MB após compressão. Com a variável configurada, a imagem é enviada ao FiveManage e o MongoDB conserva os metadados e a URL da foto. O envio do comprovante não confirma o crédito: a loja ainda precisa conferir o pagamento no banco.
 
 As operações de escrita exigem `Authorization: Bearer <ADMIN_API_TOKEN>`. O cliente conserva a chave apenas em memória enquanto a página está aberta. A conexão MongoDB é reutilizada entre invocações e registrada com `attachDatabasePool`.
 

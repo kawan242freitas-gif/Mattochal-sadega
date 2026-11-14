@@ -23,6 +23,15 @@ type OrderItem = {
   imageUrl?: string;
 };
 
+type OrderProof = {
+  name: string;
+  uploadedAt: Date;
+  storage: "fivemanage" | "mongodb";
+  dataUrl?: string;
+  url?: string;
+  fileId?: string;
+};
+
 type OrderDocument = {
   tokenHash: string;
   orderNumber: string;
@@ -32,7 +41,7 @@ type OrderDocument = {
   subtotal: number;
   notes: string;
   status: "awaiting_proof" | "proof_submitted" | "confirmed";
-  proof?: { name: string; dataUrl: string; uploadedAt: Date };
+  proof?: OrderProof;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -56,7 +65,7 @@ function publicOrder(document: WithId<OrderDocument>) {
     subtotal: document.subtotal,
     notes: document.notes,
     status: document.status,
-    ...(document.proof ? { proof: { name: document.proof.name, dataUrl: document.proof.dataUrl, uploadedAt: document.proof.uploadedAt } } : {}),
+    ...(document.proof ? { proof: document.proof } : {}),
     createdAt: document.createdAt,
   };
 }
@@ -67,6 +76,32 @@ function isJpegDataUrl(value: unknown) {
   if (!match) return false;
   const image = Buffer.from(match[1], "base64");
   return image.length > 8 && image.length <= 1_800_000 && image[0] === 0xff && image[1] === 0xd8 && image[2] === 0xff;
+}
+
+async function uploadProofToFiveManage(dataUrl: string, orderNumber: string) {
+  const apiToken = process.env.FIVEMANAGE_API_TOKEN?.trim();
+  if (!apiToken) return null;
+
+  const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+  const bytes = new Uint8Array(Buffer.from(base64, "base64"));
+  const fileName = `${orderNumber}.jpg`;
+  const form = new FormData();
+  form.append("file", new Blob([bytes], { type: "image/jpeg" }), fileName);
+  form.append("filename", fileName);
+  form.append("path", "comprovantes/matto-chales");
+  form.append("metadata", JSON.stringify({ orderNumber }));
+
+  const uploadResponse = await fetch("https://api.fivemanage.com/api/v3/file", {
+    method: "POST",
+    headers: { Authorization: apiToken },
+    body: form,
+  });
+  const result = await uploadResponse.json() as { data?: { id?: unknown; url?: unknown; originalUrl?: unknown } };
+  const url = typeof result.data?.url === "string" ? result.data.url : result.data?.originalUrl;
+  if (!uploadResponse.ok || typeof url !== "string" || !url.startsWith("https://")) {
+    throw new Error("FIVEMANAGE_UPLOAD_FAILED");
+  }
+  return { url, ...(typeof result.data?.id === "string" ? { fileId: result.data.id } : {}) };
 }
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
@@ -102,10 +137,19 @@ export default async function handler(request: VercelRequest, response: VercelRe
       const order = await orders.findOne({ tokenHash });
       if (!order) return response.status(404).json({ error: "ORDER_NOT_FOUND" });
       if (order.status === "confirmed") return response.status(409).json({ error: "ORDER_ALREADY_CONFIRMED" });
-      const name = typeof body.fileName === "string" ? body.fileName.trim().slice(0, 120) : "comprovante.jpg";
+      const uploadedAt = new Date();
+      let proof: OrderProof;
+      try {
+        const uploaded = await uploadProofToFiveManage(body.dataUrl as string, order.orderNumber);
+        proof = uploaded
+          ? { name: `Comprovante ${order.orderNumber}`, uploadedAt, storage: "fivemanage", url: uploaded.url, ...(uploaded.fileId ? { fileId: uploaded.fileId } : {}) }
+          : { name: "Comprovante de pagamento", uploadedAt, storage: "mongodb", dataUrl: body.dataUrl as string };
+      } catch {
+        return response.status(502).json({ error: "FIVEMANAGE_UPLOAD_FAILED" });
+      }
       await orders.updateOne({ _id: order._id }, {
         $set: {
-          proof: { name: name || "comprovante.jpg", dataUrl: body.dataUrl as string, uploadedAt: new Date() },
+          proof,
           status: "proof_submitted",
           updatedAt: new Date(),
         },
