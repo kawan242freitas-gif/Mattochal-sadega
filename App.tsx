@@ -311,7 +311,7 @@ function SiteScreen() {
   const productCards = shownProducts.map((product) => (
     <View style={[styles.productCard, isMobile && styles.productCardMobile]} key={product.id}>
       <Text style={styles.cardTitle}>{product.label}</Text>
-      <View style={[styles.productBottle, isMobile && styles.productBottleMobile]}><WineBottle tone={product.tone} small /></View>
+      <View style={[styles.productBottle, isMobile && styles.productBottleMobile]}>{product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.productPhoto} resizeMode="contain" accessibilityLabel={`Foto de ${product.name}`} /> : <WineBottle tone={product.tone} small />}</View>
       <BodyCopy style={styles.productDescription}>{product.description}</BodyCopy>
       <Text style={styles.stars}>★★★★★</Text>
       <View style={styles.cardBottom}><Text style={styles.cardPrice}>{product.price}</Text><Pressable onPress={() => addToCart(product.name)} style={[styles.primaryButton, styles.tinyButton]}><Text style={styles.tinyButtonText}>Adicionar à Sacola</Text></Pressable></View>
@@ -558,8 +558,9 @@ const styles = StyleSheet.create({
   productCard: { flex: 1, minWidth: 0, alignItems: "center", padding: 15, borderWidth: 1, borderColor: "#49372a", backgroundColor: "#19130f" },
   productCardMobile: { width: 245, flex: 0, flexBasis: "auto", flexShrink: 0, padding: 14 },
   cardTitle: { minHeight: 34, color: "#f2ece5", fontSize: 14, fontWeight: "700", textAlign: "center" },
-  productBottle: { height: 160, alignItems: "center", justifyContent: "center", marginTop: 2 },
-  productBottleMobile: { height: 210, justifyContent: "flex-end" },
+  productBottle: { width: "100%", height: 160, alignItems: "center", justifyContent: "center", marginTop: 2 },
+  productBottleMobile: { height: 210, justifyContent: "center" },
+  productPhoto: { width: "100%", height: "100%" },
   productDescription: { minHeight: 40, textAlign: "center", fontSize: 9, lineHeight: 14 },
   stars: { color: "#d6b078", fontSize: 10, letterSpacing: 1, marginVertical: 8 },
   cardBottom: { width: "100%", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 5 },
