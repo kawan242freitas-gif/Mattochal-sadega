@@ -11,11 +11,20 @@ type ProductDocument = {
   tone: string;
   category: "adega" | "frigobar";
   imageUrl?: string;
+  promotionalPrice?: string;
+  stockQuantity?: number;
   createdAt: Date;
   updatedAt: Date;
 };
 
-type ProductInput = Pick<ProductDocument, "name" | "label" | "price" | "description" | "tone" | "category" | "imageUrl">;
+type ProductInput = Pick<ProductDocument, "name" | "label" | "price" | "description" | "tone" | "category" | "imageUrl" | "promotionalPrice" | "stockQuantity">;
+
+function parsePrice(value: string) {
+  const normalized = value.replace(/[^\d,.-]/g, "");
+  const decimal = normalized.includes(",") ? normalized.replace(/\./g, "").replace(",", ".") : normalized;
+  const price = Number(decimal);
+  return Number.isFinite(price) && price >= 0 ? price : null;
+}
 
 function toProduct(document: WithId<ProductDocument>) {
   return {
@@ -27,6 +36,8 @@ function toProduct(document: WithId<ProductDocument>) {
     tone: document.tone,
     category: document.category === "frigobar" ? "frigobar" : "adega",
     ...(document.imageUrl ? { imageUrl: document.imageUrl } : {}),
+    ...(document.promotionalPrice ? { promotionalPrice: document.promotionalPrice } : {}),
+    ...(Number.isInteger(document.stockQuantity) && document.stockQuantity! >= 0 ? { stockQuantity: document.stockQuantity } : {}),
   };
 }
 
@@ -40,17 +51,28 @@ function parseProduct(body: unknown): ProductInput | null {
     ? value.label.trim().slice(0, 80)
     : name.toUpperCase();
   const price = typeof value.price === "string" ? value.price.trim().slice(0, 40) : "";
+  const promotionalPrice = typeof value.promotionalPrice === "string" ? value.promotionalPrice.trim().slice(0, 40) : "";
+  const stockQuantity = value.stockQuantity === null || value.stockQuantity === undefined || value.stockQuantity === ""
+    ? undefined
+    : Number(value.stockQuantity);
   const tone = ["gold", "ivory", "olive"].includes(String(value.tone)) ? String(value.tone) : "ivory";
   const category = value.category === "frigobar" ? "frigobar" : "adega";
   const imageUrl = typeof value.imageUrl === "string" ? value.imageUrl.trim().slice(0, 2048) : "";
   if (imageUrl && !imageUrl.startsWith("https://")) return null;
 
-  if (!price) return null;
+  if (!price || parsePrice(price) === null) return null;
+  if (promotionalPrice && (parsePrice(promotionalPrice) === null || parsePrice(promotionalPrice)! >= parsePrice(price)!)) return null;
+  if (stockQuantity !== undefined && (!Number.isInteger(stockQuantity) || stockQuantity < 0 || stockQuantity > 1_000_000)) return null;
   const description = typeof value.description === "string" && value.description.trim()
     ? value.description.trim().slice(0, 300)
     : "Produto selecionado pela Matto Chalés.";
 
-  return { name, label, price, description, tone, category, ...(imageUrl ? { imageUrl } : {}) };
+  return {
+    name, label, price, description, tone, category,
+    ...(imageUrl ? { imageUrl } : {}),
+    ...(promotionalPrice ? { promotionalPrice } : {}),
+    ...(stockQuantity !== undefined ? { stockQuantity } : {}),
+  };
 }
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
@@ -96,7 +118,14 @@ export default async function handler(request: VercelRequest, response: VercelRe
       const product = parseProduct(request.body);
       if (!product) return response.status(400).json({ error: "INVALID_PRODUCT" });
 
-      const result = await collection.updateOne({ _id: objectId }, { $set: { ...product, updatedAt: new Date() }, $unset: { featured: "" } });
+      const result = await collection.updateOne({ _id: objectId }, {
+        $set: { ...product, updatedAt: new Date() },
+        $unset: {
+          featured: "",
+          ...(!product.promotionalPrice ? { promotionalPrice: "" } : {}),
+          ...(product.stockQuantity === undefined ? { stockQuantity: "" } : {}),
+        },
+      });
       if (result.matchedCount === 0) return response.status(404).json({ error: "PRODUCT_NOT_FOUND" });
       const updated = await collection.findOne({ _id: objectId });
       return response.status(200).json(updated ? toProduct(updated) : null);

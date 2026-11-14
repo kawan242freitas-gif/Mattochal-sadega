@@ -21,7 +21,7 @@ import { Check, ChevronLeft, ChevronRight, Copy, House, Minus, Plus, Search, Sho
 type PanelName = "search" | "cart" | "settings" | null;
 type ProductCategory = "adega" | "frigobar";
 type CategoryFilter = "todos" | ProductCategory;
-type Product = { id: string; name: string; label: string; price: string; description: string; tone: string; category: ProductCategory; imageUrl?: string };
+type Product = { id: string; name: string; label: string; price: string; promotionalPrice?: string; stockQuantity?: number; description: string; tone: string; category: ProductCategory; imageUrl?: string };
 type OrderView = {
   id: string;
   customerName: string;
@@ -29,7 +29,7 @@ type OrderView = {
   items: { productId: string; name: string; label: string; quantity: number; unitPrice: number; tone: string; imageUrl?: string }[];
   subtotal: number;
   notes: string;
-  status: "awaiting_proof" | "proof_submitted" | "confirmed";
+  status: "awaiting_proof" | "uploading_proof" | "proof_submitted" | "confirmed";
   proof?: { name: string; dataUrl?: string; url?: string; storage?: "fivemanage" | "mongodb"; uploadedAt: string };
   createdAt: string;
 };
@@ -51,6 +51,10 @@ function parsePrice(value?: string) {
 
 function formatPrice(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function effectivePrice(product?: Product) {
+  return parsePrice(product?.promotionalPrice || product?.price);
 }
 
 const navItems = [
@@ -144,6 +148,8 @@ function SiteScreen() {
   const [productCategory, setProductCategory] = useState<ProductCategory>("adega");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("todos");
   const [productPrice, setProductPrice] = useState("");
+  const [productPromotionalPrice, setProductPromotionalPrice] = useState("");
+  const [productStockQuantity, setProductStockQuantity] = useState("");
   const [productDescription, setProductDescription] = useState("");
   const [productTone, setProductTone] = useState("ivory");
   const [productImageUrl, setProductImageUrl] = useState("");
@@ -262,14 +268,21 @@ function SiteScreen() {
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
   const cartRows = Object.entries(cart).map(([name, quantity]) => {
     const product = products.find((item) => item.name === name);
-    const unitPrice = parsePrice(product?.price);
+    const unitPrice = effectivePrice(product);
     return { name, quantity, product, unitPrice, lineTotal: unitPrice === null ? null : unitPrice * quantity };
   });
   const cartSubtotal = cartRows.reduce((sum, item) => sum + (item.lineTotal ?? 0), 0);
   const hasUnpricedItems = cartRows.some((item) => item.lineTotal === null);
 
   function addToCart(name: string, quantity = 1) {
-    setCart((current) => ({ ...current, [name]: (current[name] ?? 0) + quantity }));
+    const product = products.find((item) => item.name === name);
+    const stock = product?.stockQuantity;
+    setCart((current) => {
+      const currentQuantity = current[name] ?? 0;
+      if (stock !== undefined && currentQuantity >= stock) return current;
+      const nextQuantity = stock === undefined ? currentQuantity + quantity : Math.min(stock, currentQuantity + quantity);
+      return { ...current, [name]: nextQuantity };
+    });
   }
 
   function openProductDetails(product: Product) {
@@ -293,7 +306,8 @@ function SiteScreen() {
         delete next[name];
         return next;
       }
-      return { ...current, [name]: nextQuantity };
+      const stock = products.find((product) => product.name === name)?.stockQuantity;
+      return { ...current, [name]: stock === undefined ? nextQuantity : Math.min(stock, nextQuantity) };
     });
   }
 
@@ -331,6 +345,7 @@ function SiteScreen() {
       const result = await response.json() as { token?: string; order?: OrderView; error?: string; product?: string };
       if (!response.ok || !result.token || !result.order) {
         if (result.error === "PRODUCT_PRICE_UNAVAILABLE") throw new Error(`O produto ${result.product ?? "selecionado"} está sem preço definido.`);
+        if (result.error === "PRODUCT_STOCK_UNAVAILABLE") throw new Error(`Estoque insuficiente para ${result.product ?? "um dos produtos"}. Atualize a quantidade no carrinho.`);
         if (result.error === "MONGODB_NOT_CONFIGURED") throw new Error("Não foi possível conectar ao banco para criar a comanda.");
         throw new Error("Não foi possível criar a comanda. Revise os dados e tente novamente.");
       }
@@ -482,6 +497,8 @@ function SiteScreen() {
     setProductLabel(product?.label ?? "");
     setProductCategory(product?.category ?? "adega");
     setProductPrice(product?.price === "..." ? "" : product?.price ?? "");
+    setProductPromotionalPrice(product?.promotionalPrice ?? "");
+    setProductStockQuantity(product?.stockQuantity === undefined ? "" : String(product.stockQuantity));
     setProductDescription(product?.description ?? "");
     setProductTone(product?.tone ?? "ivory");
     setProductImageUrl(product?.imageUrl ?? "");
@@ -519,12 +536,25 @@ function SiteScreen() {
       setProductFormError(!name ? "Informe o nome do produto." : "Informe o preço do produto.");
       return;
     }
+    const stockQuantity = productStockQuantity.trim() === "" ? undefined : Number(productStockQuantity);
+    if (stockQuantity !== undefined && (!Number.isInteger(stockQuantity) || stockQuantity < 0 || stockQuantity > 1_000_000)) {
+      setProductFormError("Informe um estoque inteiro igual ou maior que zero.");
+      return;
+    }
+    const regularPrice = parsePrice(productPrice);
+    const promoPrice = productPromotionalPrice.trim() ? parsePrice(productPromotionalPrice) : null;
+    if (productPromotionalPrice.trim() && (promoPrice === null || regularPrice === null || promoPrice >= regularPrice)) {
+      setProductFormError("O preço promocional precisa ser menor que o preço normal.");
+      return;
+    }
     const product: Product = {
       id: editingProductId ?? `product-${Date.now()}`,
       name,
       label,
       category: productCategory,
       price: productPrice.trim(),
+      ...(productPromotionalPrice.trim() ? { promotionalPrice: productPromotionalPrice.trim() } : {}),
+      ...(stockQuantity !== undefined ? { stockQuantity } : {}),
       description: productDescription.trim() || "Produto selecionado pela Matto Chalés.",
       tone: productTone,
       ...(productImageUrl.trim() ? { imageUrl: productImageUrl.trim() } : {}),
@@ -606,11 +636,11 @@ function SiteScreen() {
         <BodyCopy numberOfLines={isMobile ? 4 : 5} style={[styles.productDescription, isMobile && styles.productDescriptionMobile]}>{product.description}</BodyCopy>
         <Text style={styles.stars}>★★★★★</Text>
       </Pressable>
-      <View style={styles.cardBottom}><Pressable accessibilityRole="button" accessibilityLabel={`Ver detalhes de ${product.name}`} onPress={() => openProductDetails(product)}><Text style={styles.cardPrice}>{product.price}</Text></Pressable><Pressable onPress={() => addToCart(product.name)} style={[styles.primaryButton, styles.tinyButton]}><Text style={styles.tinyButtonText}>Adicionar ao Carrinho</Text></Pressable></View>
+      <View style={styles.cardBottom}><Pressable accessibilityRole="button" accessibilityLabel={`Ver detalhes de ${product.name}`} onPress={() => openProductDetails(product)} style={styles.cardPriceBlock}>{product.promotionalPrice ? <Text style={styles.oldPrice}>{product.price}</Text> : null}<Text style={styles.cardPrice}>{product.promotionalPrice || product.price}</Text>{product.promotionalPrice ? <Text style={styles.promotionBadge}>PROMOÇÃO</Text> : null}</Pressable><Pressable disabled={product.stockQuantity === 0} onPress={() => addToCart(product.name)} style={[styles.primaryButton, styles.tinyButton, product.stockQuantity === 0 && styles.adminButtonDisabled]}><Text style={styles.tinyButtonText}>{product.stockQuantity === 0 ? "Esgotado" : "Adicionar ao Carrinho"}</Text></Pressable></View>
     </View>
   ));
   const renderAdminProductRows = (items: Product[]) => items.length
-    ? <View style={styles.adminProductList}>{items.map((product) => <View style={styles.adminProductRow} key={product.id}><View style={styles.adminProductInfo}><Text style={styles.adminProductName}>{product.name}</Text><Text style={styles.adminProductMeta}>{product.label} · {product.price} · {product.category === "frigobar" ? "Frigobar" : "Adega"}</Text></View><Pressable disabled={!canManageProducts} onPress={() => openProductForm(product)} style={styles.adminActionLink}><Text style={[styles.adminActionText, !canManageProducts && styles.adminDisabled]}>Editar</Text></Pressable><Pressable disabled={!canManageProducts} accessibilityLabel={`Excluir ${product.name}`} onPress={() => deleteProduct(product)} style={styles.adminActionLink}><Text style={[styles.deleteActionText, !canManageProducts && styles.adminDisabled]}>Excluir</Text></Pressable></View>)}</View>
+    ? <View style={styles.adminProductList}>{items.map((product) => <View style={styles.adminProductRow} key={product.id}><View style={styles.adminProductInfo}><Text style={styles.adminProductName}>{product.name}</Text><Text style={styles.adminProductMeta}>{product.label} · {product.promotionalPrice ? `${product.promotionalPrice} (promo; normal ${product.price})` : product.price} · {product.stockQuantity === undefined ? "Estoque não controlado" : `${product.stockQuantity} un. em estoque`} · {product.category === "frigobar" ? "Frigobar" : "Adega"}</Text></View><Pressable disabled={!canManageProducts} onPress={() => openProductForm(product)} style={styles.adminActionLink}><Text style={[styles.adminActionText, !canManageProducts && styles.adminDisabled]}>Editar</Text></Pressable><Pressable disabled={!canManageProducts} accessibilityLabel={`Excluir ${product.name}`} onPress={() => deleteProduct(product)} style={styles.adminActionLink}><Text style={[styles.deleteActionText, !canManageProducts && styles.adminDisabled]}>Excluir</Text></Pressable></View>)}</View>
     : <Text style={styles.adminEmpty}>Nenhum produto nesta seção.</Text>;
   const navContent = (
     <View style={styles.navItems}>
@@ -702,8 +732,8 @@ function SiteScreen() {
                 <View style={styles.searchCategoryHeading}><Text style={styles.searchCategoryTitle}>{group.label}</Text><Text style={styles.searchCategoryCount}>{group.items.length} {group.items.length === 1 ? "produto" : "produtos"}</Text></View>
                 {group.items.map((product) => <View key={product.id} style={styles.searchProductRow}>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Ver detalhes de ${product.name}`} onPress={() => openProductDetails(product)} style={styles.searchProductDetails}><View style={styles.searchProductImageWrap}>{product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.searchProductImage} resizeMode="contain" accessibilityLabel={`Foto de ${product.name}`} /> : <View style={styles.searchBottleFallback}><WineBottle tone={product.tone} small /></View>}</View>
-                  <View style={styles.searchProductInfo}><Text numberOfLines={2} style={styles.searchProductName}>{product.name}</Text><BodyCopy numberOfLines={2} style={styles.searchProductDescription}>{product.description}</BodyCopy><Text style={styles.searchProductPrice}>{product.price}</Text></View></Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Adicionar ${product.name} ao carrinho`} onPress={() => addToCart(product.name)} style={styles.searchAddButton}><Plus size={15} color="#fff" strokeWidth={2.4} /><Text style={styles.searchAddButtonText}>Adicionar</Text></Pressable>
+                  <View style={styles.searchProductInfo}><Text numberOfLines={2} style={styles.searchProductName}>{product.name}</Text><BodyCopy numberOfLines={2} style={styles.searchProductDescription}>{product.description}</BodyCopy>{product.promotionalPrice ? <Text style={styles.oldPrice}>{product.price}</Text> : null}<Text style={styles.searchProductPrice}>{product.promotionalPrice || product.price}</Text>{product.stockQuantity !== undefined && <Text style={styles.stockHint}>{product.stockQuantity === 0 ? "Esgotado" : `${product.stockQuantity} disponível(is)`}</Text>}</View></Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Adicionar ${product.name} ao carrinho`} disabled={product.stockQuantity === 0} onPress={() => addToCart(product.name)} style={[styles.searchAddButton, product.stockQuantity === 0 && styles.adminButtonDisabled]}><Plus size={15} color="#fff" strokeWidth={2.4} /><Text style={styles.searchAddButtonText}>{product.stockQuantity === 0 ? "Esgotado" : "Adicionar"}</Text></Pressable>
                 </View>)}
               </View>)}
               {products.length === 0 && <Text style={styles.searchEmpty}>Nenhum produto cadastrado. Cadastre novos produtos em Configurações.</Text>}
@@ -727,18 +757,20 @@ function SiteScreen() {
                 {!isMobile && <View style={styles.productDetailCategory}><Text style={styles.productDetailCategoryText}>{selectedProduct.category === "frigobar" ? "FRIGOBAR" : "ADEGA"}</Text></View>}
                 <Text style={styles.productDetailName}>{selectedProduct.label || selectedProduct.name}</Text>
                 {selectedProduct.label && selectedProduct.label !== selectedProduct.name && <Text style={styles.productDetailSubtitle}>{selectedProduct.name}</Text>}
-                <Text style={styles.productDetailPrice}>{parsePrice(selectedProduct.price) === null ? selectedProduct.price : formatPrice(parsePrice(selectedProduct.price)!)}</Text>
+                {selectedProduct.promotionalPrice && <Text style={styles.detailOldPrice}>{selectedProduct.price}</Text>}
+                <Text style={[styles.productDetailPrice, selectedProduct.promotionalPrice && { marginTop: 0 }]}>{parsePrice(selectedProduct.promotionalPrice || selectedProduct.price) === null ? (selectedProduct.promotionalPrice || selectedProduct.price) : formatPrice(parsePrice(selectedProduct.promotionalPrice || selectedProduct.price)!)}</Text>
+                {selectedProduct.stockQuantity !== undefined && <Text style={styles.stockHint}>{selectedProduct.stockQuantity === 0 ? "Produto esgotado" : `${selectedProduct.stockQuantity} unidade(s) disponível(is)`}</Text>}
                 <View style={styles.productDetailDivider} />
                 <Text style={styles.productDetailSectionTitle}>Sobre este produto</Text>
                 <Text style={styles.productDetailDescription}>{selectedProduct.description}</Text>
                 <View style={styles.productDetailQuantityRow}><View><Text style={styles.productDetailSectionTitle}>Quantidade</Text><Text style={styles.productDetailQuantityHint}>Escolha quantas unidades deseja</Text></View><View style={styles.productDetailQuantityControl}>
                   <Pressable accessibilityRole="button" accessibilityLabel="Diminuir quantidade" disabled={detailQuantity <= 1} onPress={() => setDetailQuantity((quantity) => Math.max(1, quantity - 1))} style={[styles.productDetailQuantityButton, detailQuantity <= 1 && styles.productDetailQuantityButtonDisabled]}><Minus size={16} color="#eee5da" /></Pressable>
                   <Text style={styles.productDetailQuantity}>{detailQuantity}</Text>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Aumentar quantidade" onPress={() => setDetailQuantity((quantity) => quantity + 1)} style={styles.productDetailQuantityButton}><Plus size={16} color="#eee5da" /></Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Aumentar quantidade" disabled={selectedProduct.stockQuantity !== undefined && detailQuantity >= selectedProduct.stockQuantity} onPress={() => setDetailQuantity((quantity) => Math.min(selectedProduct.stockQuantity ?? quantity + 1, quantity + 1))} style={[styles.productDetailQuantityButton, selectedProduct.stockQuantity !== undefined && detailQuantity >= selectedProduct.stockQuantity && styles.productDetailQuantityButtonDisabled]}><Plus size={16} color="#eee5da" /></Pressable>
                 </View></View>
               </View>
             </ScrollView>
-            <View style={styles.productDetailFooter}><View style={styles.productDetailTotal}><Text style={styles.productDetailTotalLabel}>Total</Text><Text style={styles.productDetailTotalValue}>{parsePrice(selectedProduct.price) === null ? selectedProduct.price : formatPrice(parsePrice(selectedProduct.price)! * detailQuantity)}</Text></View><Pressable accessibilityRole="button" onPress={() => { addToCart(selectedProduct.name, detailQuantity); setSelectedProduct(null); }} style={styles.productDetailAddButton}><ShoppingBag size={17} color="#fff" strokeWidth={2} /><Text style={styles.productDetailAddText}>Adicionar ao Carrinho</Text></Pressable></View>
+            <View style={styles.productDetailFooter}><View style={styles.productDetailTotal}><Text style={styles.productDetailTotalLabel}>Total</Text><Text style={styles.productDetailTotalValue}>{parsePrice(selectedProduct.promotionalPrice || selectedProduct.price) === null ? (selectedProduct.promotionalPrice || selectedProduct.price) : formatPrice(parsePrice(selectedProduct.promotionalPrice || selectedProduct.price)! * detailQuantity)}</Text></View><Pressable accessibilityRole="button" disabled={selectedProduct.stockQuantity === 0} onPress={() => { addToCart(selectedProduct.name, detailQuantity); setSelectedProduct(null); }} style={[styles.productDetailAddButton, selectedProduct.stockQuantity === 0 && styles.adminButtonDisabled]}><ShoppingBag size={17} color="#fff" strokeWidth={2} /><Text style={styles.productDetailAddText}>{selectedProduct.stockQuantity === 0 ? "Esgotado" : "Adicionar ao Carrinho"}</Text></Pressable></View>
           </View>
         </View>}
 
@@ -762,12 +794,14 @@ function SiteScreen() {
                   <View style={styles.cartProductInfo}>
                     <Text style={styles.cartProductName}>{name}</Text>
                     {!!product?.label && <Text style={styles.cartProductLabel}>{product.label}</Text>}
+                    {product?.promotionalPrice && <Text style={styles.oldPrice}>{product.price}</Text>}
                     <Text style={styles.cartProductPrice}>{unitPrice === null ? "Preço a confirmar" : formatPrice(unitPrice)}</Text>
+                    {product?.stockQuantity !== undefined && <Text style={styles.stockHint}>{product.stockQuantity === 0 ? "Esgotado" : `${product.stockQuantity} unidade(s) em estoque`}</Text>}
                     {lineTotal !== null && quantity > 1 && <Text style={styles.cartLineTotal}>Total: {formatPrice(lineTotal)}</Text>}
                     <View style={styles.cartQuantityControl}>
                       <Pressable accessibilityRole="button" accessibilityLabel={`Diminuir quantidade de ${name}`} onPress={() => changeCartQuantity(name, -1)} style={styles.cartQuantityButton}><Minus size={15} color="#eee5da" /></Pressable>
                       <Text style={styles.cartQuantity}>{quantity}</Text>
-                      <Pressable accessibilityRole="button" accessibilityLabel={`Aumentar quantidade de ${name}`} onPress={() => changeCartQuantity(name, 1)} style={styles.cartQuantityButton}><Plus size={15} color="#eee5da" /></Pressable>
+                      <Pressable accessibilityRole="button" accessibilityLabel={`Aumentar quantidade de ${name}`} disabled={product?.stockQuantity !== undefined && quantity >= product.stockQuantity} onPress={() => changeCartQuantity(name, 1)} style={[styles.cartQuantityButton, product?.stockQuantity !== undefined && quantity >= product.stockQuantity && styles.productDetailQuantityButtonDisabled]}><Plus size={15} color="#eee5da" /></Pressable>
                     </View>
                   </View>
                   <Pressable accessibilityRole="button" accessibilityLabel={`Remover ${name} da sacola`} onPress={() => removeFromCart(name)} style={styles.cartDeleteButton}><Trash2 size={17} color="#b8a18c" /></Pressable>
@@ -862,8 +896,13 @@ function SiteScreen() {
                   <TextInput value={productLabel} onChangeText={setProductLabel} placeholder="Ex.: VINHO TINTO" placeholderTextColor="#9e9388" style={styles.searchInput} />
                   <Text style={styles.settingLabel}>Categoria do produto</Text>
                   <View style={styles.productCategoryOptions}>{([["adega", "Adega"], ["frigobar", "Frigobar"]] as const).map(([category, label]) => <Pressable key={category} accessibilityRole="radio" accessibilityState={{ checked: productCategory === category }} onPress={() => setProductCategory(category)} style={[styles.productCategoryOption, productCategory === category && styles.productCategoryOptionActive]}><Text style={styles.productCategoryOptionText}>{label}</Text></Pressable>)}</View>
-                  <Text style={styles.settingLabel}>Preço</Text>
+                  <Text style={styles.settingLabel}>Preço normal</Text>
                   <TextInput value={productPrice} onChangeText={setProductPrice} placeholder="Ex.: R$ 89,90" placeholderTextColor="#9e9388" style={styles.searchInput} />
+                  <Text style={styles.settingLabel}>Preço promocional (opcional)</Text>
+                  <TextInput value={productPromotionalPrice} onChangeText={setProductPromotionalPrice} placeholder="Ex.: R$ 79,90" placeholderTextColor="#9e9388" style={styles.searchInput} />
+                  <Text style={styles.settingLabel}>Quantidade em estoque (opcional)</Text>
+                  <TextInput value={productStockQuantity} onChangeText={setProductStockQuantity} placeholder="Em branco = sem controle de estoque" placeholderTextColor="#9e9388" keyboardType="number-pad" style={styles.searchInput} />
+                  <Text style={styles.adminHint}>Use 0 para marcar como esgotado. O estoque é descontado quando o cliente envia o comprovante.</Text>
                   <Text style={styles.settingLabel}>Descrição</Text>
                   <TextInput value={productDescription} onChangeText={setProductDescription} placeholder="Descreva o produto para a vitrine" placeholderTextColor="#9e9388" multiline style={[styles.searchInput, styles.descriptionInput]} />
                   <Text style={styles.settingLabel}>Foto do produto (URL)</Text>
@@ -978,7 +1017,12 @@ const styles = StyleSheet.create({
   productDescriptionMobile: { height: 56 },
   stars: { color: "#d6b078", fontSize: 10, letterSpacing: 1, marginVertical: 8 },
   cardBottom: { width: "100%", minHeight: 36, marginTop: "auto", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 5 },
+  cardPriceBlock: { minWidth: 0, alignItems: "flex-start", gap: 2 },
   cardPrice: { color: "#d5a472", fontSize: 12, fontWeight: "700" },
+  oldPrice: { color: "#9e9388", fontSize: 9, textDecorationLine: "line-through" },
+  detailOldPrice: { marginTop: 13, color: "#9e9388", fontSize: 14, textDecorationLine: "line-through" },
+  promotionBadge: { color: "#e7c18e", fontSize: 7, fontWeight: "800", letterSpacing: .7 },
+  stockHint: { color: "#a99a8b", fontSize: 9 },
   tinyButton: { paddingHorizontal: 9, paddingVertical: 8 },
   tinyButtonText: { color: "#fff", fontSize: 9, fontWeight: "700" },
   noResults: { color: "#aaa", textAlign: "center", padding: 20 },

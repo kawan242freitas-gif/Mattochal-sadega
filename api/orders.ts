@@ -11,6 +11,8 @@ type ProductDocument = {
   tone: string;
   category?: "adega" | "frigobar";
   imageUrl?: string;
+  promotionalPrice?: string;
+  stockQuantity?: number;
 };
 
 type OrderItem = {
@@ -21,6 +23,7 @@ type OrderItem = {
   unitPrice: number;
   tone: string;
   imageUrl?: string;
+  stockManaged: boolean;
 };
 
 type OrderProof = {
@@ -40,7 +43,7 @@ type OrderDocument = {
   items: OrderItem[];
   subtotal: number;
   notes: string;
-  status: "awaiting_proof" | "proof_submitted" | "confirmed";
+  status: "awaiting_proof" | "uploading_proof" | "proof_submitted" | "confirmed";
   proof?: OrderProof;
   createdAt: Date;
   updatedAt: Date;
@@ -137,6 +140,26 @@ export default async function handler(request: VercelRequest, response: VercelRe
       const order = await orders.findOne({ tokenHash });
       if (!order) return response.status(404).json({ error: "ORDER_NOT_FOUND" });
       if (order.status === "confirmed") return response.status(409).json({ error: "ORDER_ALREADY_CONFIRMED" });
+      if (order.status === "uploading_proof") return response.status(409).json({ error: "PROOF_UPLOAD_IN_PROGRESS" });
+      const firstProof = order.status === "awaiting_proof";
+      if (firstProof) {
+        const claim = await orders.updateOne({ _id: order._id, status: "awaiting_proof" }, { $set: { status: "uploading_proof", updatedAt: new Date() } });
+        if (claim.modifiedCount !== 1) return response.status(409).json({ error: "PROOF_UPLOAD_IN_PROGRESS" });
+      }
+      const productCollection = database.collection<ProductDocument>("products");
+      const deducted: { productId: ObjectId; quantity: number }[] = [];
+      if (firstProof) {
+        for (const item of order.items.filter((entry) => entry.stockManaged)) {
+          const productId = new ObjectId(item.productId);
+          const updated = await productCollection.updateOne({ _id: productId, stockQuantity: { $gte: item.quantity } }, { $inc: { stockQuantity: -item.quantity }, $set: { updatedAt: new Date() } });
+          if (updated.modifiedCount !== 1) {
+            await Promise.all(deducted.map((entry) => productCollection.updateOne({ _id: entry.productId }, { $inc: { stockQuantity: entry.quantity } })));
+            await orders.updateOne({ _id: order._id, status: "uploading_proof" }, { $set: { status: "awaiting_proof", updatedAt: new Date() } });
+            return response.status(409).json({ error: "PRODUCT_STOCK_UNAVAILABLE", product: item.name });
+          }
+          deducted.push({ productId, quantity: item.quantity });
+        }
+      }
       const uploadedAt = new Date();
       let proof: OrderProof;
       try {
@@ -145,6 +168,10 @@ export default async function handler(request: VercelRequest, response: VercelRe
           ? { name: `Comprovante ${order.orderNumber}`, uploadedAt, storage: "fivemanage", url: uploaded.url, ...(uploaded.fileId ? { fileId: uploaded.fileId } : {}) }
           : { name: "Comprovante de pagamento", uploadedAt, storage: "mongodb", dataUrl: body.dataUrl as string };
       } catch {
+        if (firstProof) {
+          await Promise.all(deducted.map((entry) => productCollection.updateOne({ _id: entry.productId }, { $inc: { stockQuantity: entry.quantity } })));
+          await orders.updateOne({ _id: order._id, status: "uploading_proof" }, { $set: { status: "awaiting_proof", updatedAt: new Date() } });
+        }
         return response.status(502).json({ error: "FIVEMANAGE_UPLOAD_FAILED" });
       }
       await orders.updateOne({ _id: order._id }, {
@@ -183,8 +210,11 @@ export default async function handler(request: VercelRequest, response: VercelRe
     for (const requested of itemsRequested) {
       const product = productMap.get(requested.productId);
       if (!product) return response.status(409).json({ error: "PRODUCT_NO_LONGER_AVAILABLE" });
-      const unitPrice = parsePrice(product.price);
+      const unitPrice = parsePrice(product.promotionalPrice || product.price);
       if (unitPrice === null) return response.status(409).json({ error: "PRODUCT_PRICE_UNAVAILABLE", product: product.name });
+      if (Number.isInteger(product.stockQuantity) && requested.quantity > Number(product.stockQuantity)) {
+        return response.status(409).json({ error: "PRODUCT_STOCK_UNAVAILABLE", product: product.name });
+      }
       items.push({
         productId: requested.productId,
         name: product.name,
@@ -192,6 +222,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
         quantity: requested.quantity,
         unitPrice,
         tone: product.tone,
+        stockManaged: Number.isInteger(product.stockQuantity),
         ...(product.imageUrl ? { imageUrl: product.imageUrl } : {}),
       });
     }
