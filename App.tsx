@@ -80,6 +80,10 @@ function App() {
 
 function SiteScreen() {
   const scrollRef = useRef<ScrollView>(null);
+  const productsScrollRef = useRef<ScrollView>(null);
+  const productScrollPosition = useRef(0);
+  const productScrollWidth = useRef(0);
+  const productViewportWidth = useRef(0);
   const insets = useSafeAreaInsets();
   const { width: viewportWidth } = useWindowDimensions();
   const isMobile = viewportWidth <= 680;
@@ -139,6 +143,16 @@ function SiteScreen() {
     const normalized = query.trim().toLocaleLowerCase();
     return products.filter((product) => product.name.toLocaleLowerCase().includes(normalized));
   }, [products, query]);
+  const productCardWidth = isMobile ? 245 : Math.max(260, Math.floor((viewportWidth - 68 - 32) / 3));
+  const productCardGap = isMobile ? 12 : 16;
+
+  function scrollProducts(direction: -1 | 1) {
+    const maxScroll = Math.max(0, productScrollWidth.current - productViewportWidth.current);
+    const nextOffset = Math.max(0, Math.min(maxScroll, productScrollPosition.current + direction * (productCardWidth + productCardGap)));
+    productScrollPosition.current = nextOffset;
+    productsScrollRef.current?.scrollTo({ x: nextOffset, animated: true });
+  }
+
   const cartCount = Object.values(cart).reduce((sum, quantity) => sum + quantity, 0);
   const cartRows = Object.entries(cart).map(([name, quantity]) => {
     const product = products.find((item) => item.name === name);
@@ -309,7 +323,7 @@ function SiteScreen() {
   const panelStyle = styles.panel;
   const canManageProducts = databaseMode === "local" || (databaseMode === "connected" && adminUnlocked);
   const productCards = shownProducts.map((product) => (
-    <View style={[styles.productCard, isMobile && styles.productCardMobile]} key={product.id}>
+    <View style={[styles.productCard, { width: productCardWidth }, isMobile && styles.productCardMobile]} key={product.id}>
       <Text style={styles.cardTitle}>{product.label}</Text>
       <View style={[styles.productBottle, isMobile && styles.productBottleMobile]}>{product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.productPhoto} resizeMode="contain" accessibilityLabel={`Foto de ${product.name}`} /> : <WineBottle tone={product.tone} small />}</View>
       <BodyCopy style={styles.productDescription}>{product.description}</BodyCopy>
@@ -376,10 +390,10 @@ function SiteScreen() {
             </View>
 
             <View style={[styles.productsSection, isMobile && styles.productsSectionMobile]}>
-              <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>NOSSOS PRODUTOS</SectionTitle><View style={[styles.arrows, isMobile && styles.arrowsMobile]}><View style={[styles.arrow, isMobile && styles.arrowMobile]}><ChevronLeft size={15} color="#f2ece5" strokeWidth={2} /></View><View style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}><ChevronRight size={15} color="#f2ece5" strokeWidth={2} /></View></View></View>
-              {isMobile
-                ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.productGridMobile}>{productCards}</ScrollView>
-                : <View style={styles.productGrid}>{productCards}</View>}
+              <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>NOSSOS PRODUTOS</SectionTitle><View style={[styles.arrows, isMobile && styles.arrowsMobile]}><Pressable accessibilityRole="button" accessibilityLabel="Produto anterior" onPress={() => scrollProducts(-1)} style={[styles.arrow, isMobile && styles.arrowMobile]}><ChevronLeft size={15} color="#f2ece5" strokeWidth={2} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Próximo produto" onPress={() => scrollProducts(1)} style={[styles.arrow, styles.arrowActive, isMobile && styles.arrowMobile]}><ChevronRight size={15} color="#f2ece5" strokeWidth={2} /></Pressable></View></View>
+              <ScrollView ref={productsScrollRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.productGrid, isMobile && styles.productGridMobile]} onLayout={(event) => { productViewportWidth.current = event.nativeEvent.layout.width; }} onContentSizeChange={(width) => { productScrollWidth.current = width; }} onScroll={(event) => { productScrollPosition.current = event.nativeEvent.contentOffset.x; }} scrollEventThrottle={16}>
+                {productCards}
+              </ScrollView>
               {products.length === 0 && query.length === 0 && <Text style={styles.emptyCatalog}>Nenhum produto cadastrado. Cadastre novos produtos em Configurações.</Text>}
               {query.length > 0 && shownProducts.length === 0 && <Text style={styles.noResults}>Nenhum vinho encontrado.</Text>}
             </View>
@@ -555,7 +569,7 @@ const styles = StyleSheet.create({
   arrowActive: { borderColor: "#805739", backgroundColor: "#805739" },
   productGrid: { flexDirection: "row", gap: 16 },
   productGridMobile: { flexDirection: "row", gap: 12, paddingRight: 18 },
-  productCard: { flex: 1, minWidth: 0, alignItems: "center", padding: 15, borderWidth: 1, borderColor: "#49372a", backgroundColor: "#19130f" },
+  productCard: { flex: 0, minWidth: 0, alignItems: "center", padding: 15, borderWidth: 1, borderColor: "#49372a", backgroundColor: "#19130f" },
   productCardMobile: { width: 245, flex: 0, flexBasis: "auto", flexShrink: 0, padding: 14 },
   cardTitle: { minHeight: 34, color: "#f2ece5", fontSize: 14, fontWeight: "700", textAlign: "center" },
   productBottle: { width: "100%", height: 160, alignItems: "center", justifyContent: "center", marginTop: 2 },
