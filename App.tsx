@@ -151,17 +151,23 @@ function SiteScreen() {
   }, []);
 
   const shownProducts = useMemo(() => {
+    return products.filter((product) => categoryFilter === "todos" || product.category === categoryFilter);
+  }, [products, categoryFilter]);
+  const searchGroups = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase();
-    return products.filter((product) => product.name.toLocaleLowerCase().includes(normalized)
-      && (categoryFilter === "todos" || product.category === categoryFilter));
-  }, [products, query, categoryFilter]);
+    const matches = products.filter((product) => !normalized || [product.name, product.label, product.description].some((value) => value.toLocaleLowerCase().includes(normalized)));
+    return ([
+      { id: "adega", label: "Adega", items: matches.filter((product) => product.category === "adega") },
+      { id: "frigobar", label: "Frigobar", items: matches.filter((product) => product.category === "frigobar") },
+    ] as const).filter((group) => group.items.length > 0);
+  }, [products, query]);
   const productCardWidth = isMobile ? 245 : Math.max(260, Math.floor((viewportWidth - 68 - 32) / 3));
   const productCardGap = isMobile ? 12 : 16;
 
   useEffect(() => {
     productScrollPosition.current = 0;
     productsScrollRef.current?.scrollTo({ x: 0, animated: false });
-  }, [query, categoryFilter]);
+  }, [categoryFilter]);
 
   function scrollProducts(direction: -1 | 1) {
     const maxScroll = Math.max(0, productScrollWidth.current - productViewportWidth.current);
@@ -390,12 +396,6 @@ function SiteScreen() {
               </View>
             </View>
 
-            {panel === "search" && <View style={[styles.expandedSearch, isMobile && styles.expandedSearchMobile]}>
-              <Search size={18} color="#c18d5e" strokeWidth={2} />
-              <TextInput value={query} onChangeText={setQuery} placeholder="Buscar vinhos e bebidas..." placeholderTextColor="#9e9388" style={styles.expandedSearchInput} autoFocus accessibilityLabel="Buscar produtos" returnKeyType="search" />
-              <Pressable accessibilityRole="button" accessibilityLabel="Fechar busca" onPress={() => { setPanel(null); setActive("home"); }} style={styles.expandedSearchClose}><X size={18} color="#c9c0b7" /></Pressable>
-            </View>}
-
               <View style={[styles.hero, isMobile && styles.heroMobile]}>
               <View style={[styles.heroCopy, isMobile && styles.heroCopyMobile]}>
                 <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile, isSmallMobile && styles.heroTitleSmall]}>SEJA BEM-VINDO{"\n"}À NOSSA ADEGA</Text>
@@ -415,7 +415,6 @@ function SiteScreen() {
                 {productCards}
               </ScrollView>
               {products.length === 0 && query.length === 0 && <Text style={styles.emptyCatalog}>Nenhum produto cadastrado. Cadastre novos produtos em Configurações.</Text>}
-              {query.length > 0 && shownProducts.length === 0 && <Text style={styles.noResults}>Nenhum vinho encontrado.</Text>}
               {query.length === 0 && categoryFilter !== "todos" && shownProducts.length === 0 && products.length > 0 && <Text style={styles.noResults}>Nenhum produto nesta categoria.</Text>}
             </View>
 
@@ -427,6 +426,33 @@ function SiteScreen() {
             <Text style={styles.copyright}>...</Text>
           </View>
         </ScrollView>
+
+        {panel === "search" && <View style={[styles.searchScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+          <View style={[styles.searchScreenContent, !isMobile && styles.searchScreenContentWide]}>
+            <View style={styles.searchScreenHeader}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja" onPress={() => { setPanel(null); setActive("home"); }} style={styles.searchBackButton}><ChevronLeft size={24} color="#d5a472" strokeWidth={2} /><Text style={styles.searchBackText}>Voltar</Text></Pressable>
+              <Text style={styles.searchScreenTitle}>Buscar produtos</Text>
+            </View>
+            <View style={styles.searchPageBar}>
+              <Search size={19} color="#c18d5e" strokeWidth={2} />
+              <TextInput value={query} onChangeText={setQuery} placeholder="Buscar vinhos e bebidas..." placeholderTextColor="#9e9388" style={styles.searchPageInput} autoFocus accessibilityLabel="Buscar produtos" returnKeyType="search" />
+              {!!query && <Pressable accessibilityRole="button" accessibilityLabel="Limpar busca" onPress={() => setQuery("")} style={styles.searchClearButton}><X size={17} color="#c9c0b7" /></Pressable>}
+            </View>
+            <ScrollView style={styles.searchResultsScroll} contentContainerStyle={styles.searchResultsContent} keyboardShouldPersistTaps="handled">
+              <Text style={styles.searchResultsCaption}>{query.trim() ? `Resultados para “${query.trim()}”` : "Produtos por categoria"}</Text>
+              {searchGroups.map((group) => <View key={group.id} style={styles.searchCategoryGroup}>
+                <View style={styles.searchCategoryHeading}><Text style={styles.searchCategoryTitle}>{group.label}</Text><Text style={styles.searchCategoryCount}>{group.items.length} {group.items.length === 1 ? "produto" : "produtos"}</Text></View>
+                {group.items.map((product) => <View key={product.id} style={styles.searchProductRow}>
+                  <View style={styles.searchProductImageWrap}>{product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.searchProductImage} resizeMode="contain" accessibilityLabel={`Foto de ${product.name}`} /> : <View style={styles.searchBottleFallback}><WineBottle tone={product.tone} small /></View>}</View>
+                  <View style={styles.searchProductInfo}><Text numberOfLines={2} style={styles.searchProductName}>{product.name}</Text><BodyCopy numberOfLines={2} style={styles.searchProductDescription}>{product.description}</BodyCopy><Text style={styles.searchProductPrice}>{product.price}</Text></View>
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Adicionar ${product.name} ao carrinho`} onPress={() => addToCart(product.name)} style={styles.searchAddButton}><Plus size={15} color="#fff" strokeWidth={2.4} /><Text style={styles.searchAddButtonText}>Adicionar</Text></Pressable>
+                </View>)}
+              </View>)}
+              {products.length === 0 && <Text style={styles.searchEmpty}>Nenhum produto cadastrado. Cadastre novos produtos em Configurações.</Text>}
+              {products.length > 0 && searchGroups.length === 0 && <Text style={styles.searchEmpty}>Nenhum produto encontrado. Tente outro termo.</Text>}
+            </ScrollView>
+          </View>
+        </View>}
 
         {panel === "cart" && <View style={[styles.cartScreen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <View style={[styles.cartContent, !isMobile && styles.cartContentWide]}>
@@ -675,6 +701,34 @@ const styles = StyleSheet.create({
   cartTitleRow: { position: "absolute", left: 0, right: 0, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9 },
   cartScreenTitle: { color: "#f3f1ef", fontSize: 16, fontWeight: "700" },
   cartCountPill: { position: "absolute", right: 0, minWidth: 23, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 12, overflow: "hidden", color: "#21170f", backgroundColor: "#d5a472", textAlign: "center", fontSize: 11, fontWeight: "700" },
+  searchScreen: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, zIndex: 20, alignItems: "stretch", paddingHorizontal: 18, backgroundColor: "#0d0b09" },
+  searchScreenContent: { flex: 1, width: "100%", alignSelf: "center" },
+  searchScreenContentWide: { maxWidth: 860 },
+  searchScreenHeader: { minHeight: 76, position: "relative", flexDirection: "row", alignItems: "center", justifyContent: "center", borderBottomWidth: 1, borderBottomColor: "#49372a" },
+  searchBackButton: { position: "absolute", left: 0, zIndex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 5 },
+  searchBackText: { color: "#d5a472", fontSize: 12, fontWeight: "600" },
+  searchScreenTitle: { color: "#f3f1ef", fontSize: 18, fontWeight: "700" },
+  searchPageBar: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 11, marginTop: 18, marginBottom: 12, paddingHorizontal: 14, borderWidth: 1, borderColor: "#61482f", borderRadius: 10, backgroundColor: "#15100c" },
+  searchPageInput: { flex: 1, minWidth: 0, height: 48, color: "#fff", fontSize: 16, backgroundColor: "transparent", outlineStyle: "none" } as any,
+  searchClearButton: { width: 34, height: 36, alignItems: "center", justifyContent: "center" },
+  searchResultsScroll: { flex: 1 },
+  searchResultsContent: { paddingTop: 6, paddingBottom: 24 },
+  searchResultsCaption: { marginBottom: 14, color: "#a99a8b", fontSize: 11 },
+  searchCategoryGroup: { marginBottom: 20 },
+  searchCategoryHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingBottom: 7, borderBottomWidth: 1, borderBottomColor: "#49372a" },
+  searchCategoryTitle: { color: "#f3f1ef", fontSize: 16, fontWeight: "700" },
+  searchCategoryCount: { color: "#a99a8b", fontSize: 10 },
+  searchProductRow: { minHeight: 112, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: "#33271e" },
+  searchProductImageWrap: { width: 66, height: 78, alignItems: "center", justifyContent: "center", overflow: "hidden", borderRadius: 8, backgroundColor: "#18120e" },
+  searchProductImage: { width: "100%", height: "100%" },
+  searchBottleFallback: { height: 80, overflow: "hidden", alignItems: "center", justifyContent: "center", transform: [{ scale: .43 }] },
+  searchProductInfo: { flex: 1, minWidth: 0, gap: 4, alignItems: "flex-start" },
+  searchProductName: { color: "#f3f1ef", fontSize: 12, lineHeight: 16, fontWeight: "700" },
+  searchProductDescription: { fontSize: 10, lineHeight: 14 },
+  searchProductPrice: { color: "#d5a472", fontSize: 12, fontWeight: "700" },
+  searchAddButton: { minHeight: 36, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3, paddingHorizontal: 10, borderRadius: 18, backgroundColor: "#765036" },
+  searchAddButtonText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+  searchEmpty: { paddingVertical: 30, color: "#bcb8b5", fontSize: 12, lineHeight: 19, textAlign: "center" },
   cartEmpty: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, paddingBottom: 45 },
   cartEmptyIcon: { width: 68, height: 68, alignItems: "center", justifyContent: "center", marginBottom: 20, borderRadius: 34, backgroundColor: "#211912" },
   cartEmptyTitle: { color: "#f3f1ef", fontSize: 21, fontWeight: "700", textAlign: "center" },
