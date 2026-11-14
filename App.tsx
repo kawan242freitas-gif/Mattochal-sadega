@@ -315,9 +315,7 @@ function SiteScreen() {
                 <Text style={styles.heroTagline}>AS MELHORES BEBIDAS ESTÃO AQUI</Text>
               </View>
               <View style={[styles.heroStaticPhotoArea, isMobile && styles.heroStaticPhotoAreaMobile]}>
-                <View style={[styles.heroStaticPhotoFrame, isMobile && styles.heroStaticPhotoFrameMobile]}>
-                  <Image source={{ uri: HERO_IMAGE_URL }} style={styles.heroStaticPhoto} resizeMode="contain" accessibilityLabel="Cesta de vinhos Matto Chalés" />
-                </View>
+                <Image source={{ uri: HERO_IMAGE_URL }} style={styles.heroStaticPhoto} resizeMode="contain" accessibilityLabel="Cesta de vinhos Matto Chalés" />
               </View>
             </View>
 
@@ -454,9 +452,7 @@ const styles = StyleSheet.create({
   heroTagline: { color: "#d3cecb", marginTop: 16, marginBottom: 14, fontSize: 10, letterSpacing: 2, fontWeight: "600" },
   heroStaticPhotoArea: { flex: 1.05, height: 370, minWidth: 0, alignItems: "center", justifyContent: "center" },
   heroStaticPhotoAreaMobile: { flex: 0, width: "100%", height: 290, marginTop: 14 },
-  heroStaticPhotoFrame: { width: "100%", height: 350, maxWidth: 420, padding: 6, overflow: "hidden", borderWidth: 1, borderColor: "rgba(213, 164, 114, 0.28)", borderRadius: 14, backgroundColor: "rgba(255, 255, 255, 0.025)" },
-  heroStaticPhotoFrameMobile: { height: 280, maxWidth: 360, padding: 4 },
-  heroStaticPhoto: { width: "100%", height: "100%", backgroundColor: "#100d0a", borderRadius: 8 },
+  heroStaticPhoto: { width: "100%", height: "100%", maxWidth: 420 },
   shortRule: { width: 50, height: 1, backgroundColor: "#ddd", marginBottom: 12 },
   bodyCopy: { color: "#bcb8b5", fontSize: 12, lineHeight: 20 },
   smallCopy: { fontSize: 10, lineHeight: 16 },
