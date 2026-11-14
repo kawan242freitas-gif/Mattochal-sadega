@@ -509,11 +509,12 @@ function SiteScreen() {
               <Text style={styles.productDetailHeaderTitle}>Detalhes do produto</Text>
             </View>
             <ScrollView style={styles.productDetailScroll} contentContainerStyle={[styles.productDetailBody, isMobile && styles.productDetailBodyMobile]}>
+              {isMobile && <View style={styles.productDetailCategory}><Text style={styles.productDetailCategoryText}>{selectedProduct.category === "frigobar" ? "FRIGOBAR" : "ADEGA"}</Text></View>}
               <View style={[styles.productDetailHero, isMobile && styles.productDetailHeroMobile]}>
                 {selectedProduct.imageUrl ? <Image source={{ uri: selectedProduct.imageUrl }} style={styles.productDetailImage} resizeMode="contain" accessibilityLabel={`Foto de ${selectedProduct.name}`} /> : <View style={styles.productDetailBottle}><WineBottle tone={selectedProduct.tone} /></View>}
               </View>
               <View style={styles.productDetailInfo}>
-                <View style={styles.productDetailCategory}><Text style={styles.productDetailCategoryText}>{selectedProduct.category === "frigobar" ? "FRIGOBAR" : "ADEGA"}</Text></View>
+                {!isMobile && <View style={styles.productDetailCategory}><Text style={styles.productDetailCategoryText}>{selectedProduct.category === "frigobar" ? "FRIGOBAR" : "ADEGA"}</Text></View>}
                 <Text style={styles.productDetailName}>{selectedProduct.label || selectedProduct.name}</Text>
                 {selectedProduct.label && selectedProduct.label !== selectedProduct.name && <Text style={styles.productDetailSubtitle}>{selectedProduct.name}</Text>}
                 <Text style={styles.productDetailPrice}>{parsePrice(selectedProduct.price) === null ? selectedProduct.price : formatPrice(parsePrice(selectedProduct.price)!)}</Text>
