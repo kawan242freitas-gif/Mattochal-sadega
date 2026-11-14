@@ -411,12 +411,12 @@ function SiteScreen() {
           <View style={[styles.cartContent, !isMobile && styles.cartContentWide]}>
             <View style={styles.cartScreenHeader}>
               <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja" onPress={() => { setPanel(null); setActive("home"); }} style={styles.cartBackButton}><ChevronLeft size={24} color="#d5a472" strokeWidth={2} /><Text style={styles.cartBackText}>Voltar</Text></Pressable>
-              <View pointerEvents="none" style={styles.cartTitleRow}><ShoppingBag size={21} color="#d5a472" /><Text style={styles.cartScreenTitle}>Sua sacola</Text>{cartCount > 0 && <Text style={styles.cartCountPill}>{cartCount}</Text>}</View>
+              <View pointerEvents="none" style={styles.cartTitleRow}><ShoppingBag size={21} color="#d5a472" /><Text style={styles.cartScreenTitle}>Carrinho</Text>{cartCount > 0 && <Text style={styles.cartCountPill}>{cartCount}</Text>}</View>
             </View>
 
             {cartRows.length === 0 ? <View style={styles.cartEmpty}>
               <View style={styles.cartEmptyIcon}><ShoppingBag size={31} color="#c18d5e" /></View>
-              <Text style={styles.cartEmptyTitle}>Sua sacola está vazia</Text>
+              <Text style={styles.cartEmptyTitle}>Seu carrinho está vazio</Text>
               <Text style={styles.cartEmptyCopy}>Explore nossos produtos e adicione seus favoritos para continuar.</Text>
               <Pressable onPress={() => { setPanel(null); setActive("home"); scrollRef.current?.scrollTo({ y: 0, animated: true }); }} style={styles.cartPrimaryButton}><Text style={styles.cartPrimaryButtonText}>Ver produtos</Text></Pressable>
             </View> : <>
