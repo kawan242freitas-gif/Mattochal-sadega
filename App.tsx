@@ -125,8 +125,10 @@ function SiteScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const isMobile = viewportWidth <= 680;
   const isSmallMobile = viewportWidth <= 390;
-  const [panel, setPanel] = useState<PanelName>(null);
-  const [active, setActive] = useState("home");
+  const initialAdminRoute = Platform.OS === "web" && typeof window !== "undefined" && window.location.pathname.replace(/\/+$/, "") === "/admin";
+  const [isAdminRoute, setIsAdminRoute] = useState(initialAdminRoute);
+  const [panel, setPanel] = useState<PanelName>(initialAdminRoute ? "settings" : null);
+  const [active, setActive] = useState(initialAdminRoute ? "settings" : "home");
   const [query, setQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [detailQuantity, setDetailQuantity] = useState(1);
@@ -165,6 +167,18 @@ function SiteScreen() {
   const [productTone, setProductTone] = useState("ivory");
   const [productImageUrl, setProductImageUrl] = useState("");
   const [productFormError, setProductFormError] = useState("");
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return;
+    const syncRoute = () => {
+      const adminRoute = window.location.pathname.replace(/\/+$/, "") === "/admin";
+      setIsAdminRoute(adminRoute);
+      setPanel(adminRoute ? "settings" : null);
+      setActive(adminRoute ? "settings" : "home");
+    };
+    window.addEventListener("popstate", syncRoute);
+    return () => window.removeEventListener("popstate", syncRoute);
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof window === "undefined") {
@@ -620,6 +634,7 @@ function SiteScreen() {
   }
 
   function pressNav(id: string) {
+    if (id === "settings" && !isAdminRoute) return;
     if (id === "home") {
       setPanel(null);
       setActive("home");
@@ -634,6 +649,15 @@ function SiteScreen() {
     setPanel(id as PanelName);
     setActive(id);
     if (id === "search") scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }
+
+  function returnToCustomerStore() {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.history.pushState({}, "", "/");
+      setIsAdminRoute(false);
+    }
+    setPanel(null);
+    setActive("home");
   }
 
   const pageStyle = [styles.page, isMobile && styles.pageMobile];
@@ -655,7 +679,7 @@ function SiteScreen() {
     : <Text style={styles.adminEmpty}>Nenhum produto nesta seção.</Text>;
   const navContent = (
     <View style={styles.navItems}>
-      {navItems.map((item) => {
+      {navItems.filter((item) => !isAdminRoute && item.id !== "settings").map((item) => {
         const isActive = active === item.id;
         const isButton = item.id !== "home";
         const Icon = item.Icon;
@@ -886,7 +910,7 @@ function SiteScreen() {
             <View style={panel === "settings" ? styles.settingsScreenPanel : panelStyle}>
               {panel === "settings" ? (
                 <View style={styles.settingsScreenHeader}>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja" onPress={() => { setPanel(null); setActive("home"); }} style={styles.settingsBackButton}><Text style={styles.settingsBackArrow}>‹</Text><Text style={styles.settingsBackText}>Loja</Text></Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Voltar para a loja de clientes" onPress={returnToCustomerStore} style={styles.settingsBackButton}><Text style={styles.settingsBackArrow}>‹</Text><Text style={styles.settingsBackText}>Loja</Text></Pressable>
                   <View style={styles.settingsScreenHeadingCopy}><Text style={styles.settingsScreenTitle}>Configurações</Text><Text style={styles.settingsScreenSubtitle}>Gerencie seus produtos e o catálogo</Text></View>
                 </View>
               ) : (
@@ -931,7 +955,7 @@ function SiteScreen() {
           </View>
         )}
 
-        <View style={[styles.navPosition, { bottom: Math.max(13, insets.bottom + 8) }]}>
+        {!isAdminRoute && <View style={[styles.navPosition, { bottom: Math.max(13, insets.bottom + 8) }]}>
           {Platform.OS === "ios" ? (
               <GlassView style={styles.navSurface} glassEffectStyle="regular" tintColor="rgba(62, 39, 25, 0.42)" isInteractive>
               {navContent}
@@ -939,7 +963,7 @@ function SiteScreen() {
           ) : (
             <View style={[styles.navSurface, webGlassStyle]}>{navContent}</View>
           )}
-        </View>
+        </View>}
       </View>
     </View>
   );

@@ -2,5 +2,9 @@
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "framework": null
+  "framework": null,
+  "rewrites": [
+    { "source": "/admin", "destination": "/" },
+    { "source": "/admin/", "destination": "/" }
+  ]
 }
