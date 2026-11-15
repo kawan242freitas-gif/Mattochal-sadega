@@ -37,7 +37,7 @@ type OrderView = {
 const HERO_IMAGE_URL = "https://r2.fivemanage.com/vLUsF9vzqBOo7DSFHERFX/CestadeVinhosMattoChals.png";
 const CART_STORAGE_KEY = "matto-chales-cart-v1";
 const PIX_KEY = "matto.corporativo@gmail.com";
-const WHATSAPP_NUMBER = "553187952587";
+const WHATSAPP_NUMBER = "553598908891";
 
 function parsePrice(value?: string) {
   if (!value || value.toLocaleLowerCase().includes("consulte")) return null;
