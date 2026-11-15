@@ -718,11 +718,8 @@ function SiteScreen() {
             </View>
 
             <View style={[styles.footer, isMobile && styles.footerMobile]}>
-              <View style={[styles.footerColumn, isMobile && styles.footerAboutMobile]}><Text style={styles.footerBrand}>Matto Chalés</Text><BodyCopy>...</BodyCopy><Text style={styles.social}>◉  ◎  ◌  ◉</Text></View>
-              <View style={[styles.footerColumn, isMobile && styles.footerColumnMobile]}><Text style={styles.footerHeading}>LINKS RÁPIDOS</Text><Text style={styles.footerLink}>Início</Text><Text style={styles.footerLink}>Produtos</Text><Text style={styles.footerLink}>Contato</Text></View>
-              <View style={[styles.footerColumn, isMobile && styles.footerColumnMobile]}><Text style={styles.footerHeading}>CONTATO</Text><Text style={styles.footerLink}>⌖  ...</Text><Text style={styles.footerLink}>☎  ...</Text><Text style={styles.footerLink}>✉  ...</Text></View>
+              <View style={styles.footerContact}><Text style={styles.footerHeading}>CONTATO</Text><Text style={styles.footerLink}>☎  +55 35 9890-8891</Text><Text style={styles.footerLink}>✉  matto.corporativo@gmail.com</Text></View>
             </View>
-            <Text style={styles.copyright}>...</Text>
           </View>
         </ScrollView>
 
@@ -1084,6 +1081,7 @@ const styles = StyleSheet.create({
   footer: { paddingHorizontal: 34, paddingTop: 36, paddingBottom: 28, flexDirection: "row", gap: 35, backgroundColor: "#2c1b12" },
   footerMobile: { paddingHorizontal: 18, paddingTop: 30, paddingBottom: 24, flexDirection: "row", flexWrap: "wrap", gap: 20 },
   footerColumn: { flex: 1, gap: 9 },
+  footerContact: { flex: 1, gap: 9 },
   footerAboutMobile: { width: "100%", flex: 0, flexBasis: "100%", flexShrink: 0 },
   footerColumnMobile: { width: "45%", flex: 1, minWidth: 0 },
   footerBrand: { color: "#f7f0ed", fontSize: 21, fontWeight: "700" },
