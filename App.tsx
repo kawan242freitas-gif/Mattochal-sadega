@@ -473,8 +473,8 @@ function SiteScreen() {
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) return;
-      if (!file.type.startsWith("image/")) {
-        setProductFormError("Selecione um arquivo de imagem.");
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        setProductFormError("Selecione uma imagem PNG, JPG ou WebP.");
         return;
       }
 
@@ -494,10 +494,9 @@ function SiteScreen() {
           setProductFormError("Não foi possível preparar essa imagem. Tente outra foto.");
           return;
         }
-        context.fillStyle = "#fff";
-        context.fillRect(0, 0, canvas.width, canvas.height);
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(source);
+        const outputType = file.type === "image/jpeg" ? "image/jpeg" : file.type;
         canvas.toBlob((blob) => {
           if (!blob || blob.size > 1_800_000) {
             setProductSaveBusy(false);
@@ -520,7 +519,7 @@ function SiteScreen() {
             setProductFormError("Não foi possível ler a imagem. Tente novamente.");
           };
           reader.readAsDataURL(blob);
-        }, "image/jpeg", .86);
+        }, outputType, file.type === "image/jpeg" ? .86 : undefined);
       };
       image.onerror = () => {
         URL.revokeObjectURL(source);
