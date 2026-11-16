@@ -124,6 +124,7 @@ function SiteScreen() {
   const insets = useSafeAreaInsets();
   const { width: viewportWidth } = useWindowDimensions();
   const isMobile = viewportWidth <= 680;
+  const isDesktop = viewportWidth >= 960;
   const isSmallMobile = viewportWidth <= 390;
   const initialAdminRoute = Platform.OS === "web" && typeof window !== "undefined" && window.location.pathname.replace(/\/+$/, "") === "/admin";
   const [isAdminRoute, setIsAdminRoute] = useState(initialAdminRoute);
@@ -278,7 +279,11 @@ function SiteScreen() {
       { id: "frigobar", label: "Frigobar", items: matches.filter((product) => product.category === "frigobar") },
     ] as const).filter((group) => group.items.length > 0);
   }, [products, query]);
-  const productCardWidth = isMobile ? 245 : Math.max(260, Math.floor((viewportWidth - 68 - 32) / 3));
+  const desktopCardCount = viewportWidth >= 1400 ? 4 : 3;
+  const desktopContentWidth = viewportWidth - 136;
+  const productCardWidth = isMobile
+    ? 245
+    : Math.min(420, Math.max(260, Math.floor((desktopContentWidth - 16 * (desktopCardCount - 1)) / desktopCardCount)));
   const productCardGap = isMobile ? 12 : 16;
 
   useEffect(() => {
@@ -825,17 +830,17 @@ function SiteScreen() {
               </View>
             </View>
 
-              <View style={[styles.hero, isMobile && styles.heroMobile]}>
-              <View style={[styles.heroCopy, isMobile && styles.heroCopyMobile]}>
-                <Text style={[styles.heroTitle, isMobile && styles.heroTitleMobile, isSmallMobile && styles.heroTitleSmall]}>SEJA BEM-VINDO{"\n"}À NOSSA ADEGA</Text>
+              <View style={[styles.hero, isDesktop && styles.heroDesktop, isMobile && styles.heroMobile]}>
+              <View style={[styles.heroCopy, isDesktop && styles.heroCopyDesktop, isMobile && styles.heroCopyMobile]}>
+                <Text style={[styles.heroTitle, isDesktop && styles.heroTitleDesktop, isDesktop && { fontSize: Math.min(60, Math.max(42, viewportWidth * .047)), lineHeight: Math.min(66, Math.max(48, viewportWidth * .052)) }, isMobile && styles.heroTitleMobile, isSmallMobile && styles.heroTitleSmall]}>SEJA BEM-VINDO{"\n"}À NOSSA ADEGA</Text>
                 <Text style={styles.heroTagline}>AS MELHORES BEBIDAS ESTÃO AQUI</Text>
               </View>
-              <View style={[styles.heroStaticPhotoArea, isMobile && styles.heroStaticPhotoAreaMobile]}>
-                <Image source={{ uri: HERO_IMAGE_URL }} style={styles.heroStaticPhoto} resizeMode="contain" accessibilityLabel="Cesta de vinhos Matto Chalés" />
+              <View style={[styles.heroStaticPhotoArea, isDesktop && styles.heroStaticPhotoAreaDesktop, isMobile && styles.heroStaticPhotoAreaMobile]}>
+                <Image source={{ uri: HERO_IMAGE_URL }} style={[styles.heroStaticPhoto, isDesktop && styles.heroStaticPhotoDesktop]} resizeMode="contain" accessibilityLabel="Cesta de vinhos Matto Chalés" />
               </View>
             </View>
 
-            <View style={[styles.productsSection, isMobile && styles.productsSectionMobile]}>
+            <View style={[styles.productsSection, isDesktop && styles.productsSectionDesktop, isMobile && styles.productsSectionMobile]}>
               <View style={[styles.sectionHeadingLine, isMobile && styles.sectionHeadingLineMobile]}><SectionTitle compact={isMobile}>NOSSOS PRODUTOS</SectionTitle></View>
               <View style={[styles.catalogControls, isMobile && styles.catalogControlsMobile]}>
                 <View style={[styles.catalogFilters, isMobile && styles.catalogFiltersMobile]} accessibilityRole="radiogroup" accessibilityLabel="Filtrar produtos por categoria">
@@ -1104,16 +1109,21 @@ const styles = StyleSheet.create({
   brandLogoMobile: { width: 44, height: 34 },
   brandAccent: { color: "#c18d5e" },
   hero: { minHeight: 650, paddingHorizontal: 34, paddingVertical: 48, backgroundColor: "#18110d", flexDirection: "column", alignItems: "stretch", justifyContent: "flex-start", gap: 18, position: "relative", overflow: "hidden" },
+  heroDesktop: { minHeight: 560, paddingHorizontal: 68, paddingVertical: 40, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 36 },
   heroMobile: { minHeight: 0, paddingHorizontal: 18, paddingTop: 36, paddingBottom: 28, flexDirection: "column", alignItems: "stretch", justifyContent: "center", gap: 0 },
   heroCopy: { flex: 0, zIndex: 2 },
+  heroCopyDesktop: { flex: 1, maxWidth: 650 },
   heroCopyMobile: { flex: 0, flexBasis: "auto", flexShrink: 0 },
   heroTitle: { color: "#f5f2f0", fontSize: 57, lineHeight: 62, fontWeight: "800", letterSpacing: -2 },
+  heroTitleDesktop: { fontSize: 60, lineHeight: 66, letterSpacing: -2.2 },
   heroTitleMobile: { fontSize: 43, lineHeight: 47, letterSpacing: -1.5 },
   heroTitleSmall: { fontSize: 37, lineHeight: 41 },
   heroTagline: { color: "#d3cecb", marginTop: 16, marginBottom: 14, fontSize: 10, letterSpacing: 2, fontWeight: "600" },
   heroStaticPhotoArea: { flex: 0, flexShrink: 0, width: "100%", height: 370, minHeight: 370, minWidth: 0, alignItems: "center", justifyContent: "center" },
+  heroStaticPhotoAreaDesktop: { flex: 1, flexShrink: 1, width: "50%", maxWidth: 620, height: 470, minHeight: 0 },
   heroStaticPhotoAreaMobile: { flex: 0, flexShrink: 0, width: "100%", height: 290, minHeight: 290, marginTop: 14 },
   heroStaticPhoto: { width: "100%", height: "100%", maxWidth: 420 },
+  heroStaticPhotoDesktop: { maxWidth: 620 },
   shortRule: { width: 50, height: 1, backgroundColor: "#ddd", marginBottom: 12 },
   bodyCopy: { color: "#bcb8b5", fontSize: 12, lineHeight: 20 },
   smallCopy: { fontSize: 10, lineHeight: 16 },
@@ -1129,6 +1139,7 @@ const styles = StyleSheet.create({
   labelGold: { backgroundColor: "#d7c170" },
   labelOlive: { backgroundColor: "#e2ddc7" },
   productsSection: { paddingHorizontal: 34, paddingTop: 48, paddingBottom: 52, backgroundColor: "#100d0a" },
+  productsSectionDesktop: { paddingHorizontal: 68, paddingTop: 42, paddingBottom: 54 },
   productsSectionMobile: { paddingHorizontal: 18, paddingTop: 36, paddingBottom: 38 },
   emptyCatalog: { paddingVertical: 24, color: "#bcb8b5", fontSize: 12, lineHeight: 18, textAlign: "center" },
   sectionHeadingLine: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
