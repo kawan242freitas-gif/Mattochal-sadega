@@ -778,7 +778,7 @@ function SiteScreen() {
   const panelStyle = styles.panel;
   const canManageProducts = databaseMode === "local" || (databaseMode === "connected" && adminUnlocked);
   const productCards = shownProducts.map((product) => (
-    <View style={[styles.productCard, { width: productCardWidth }, isMobile && styles.productCardMobile]} key={product.id}>
+    <View style={[styles.productCard, { width: productCardWidth }, !isMobile && { width: productCardWidth, flexBasis: productCardWidth, flexGrow: 0, flexShrink: 0 }, isMobile && styles.productCardMobile]} key={product.id}>
       <Pressable accessibilityRole="button" accessibilityLabel={`Ver detalhes de ${product.name}`} onPress={() => openProductDetails(product)} style={styles.productCardDetails}>
         <Text numberOfLines={2} style={styles.cardTitle}>{product.label}</Text>
         <View style={[styles.productBottle, isMobile && styles.productBottleMobile]}>{product.imageUrl ? <Image source={{ uri: product.imageUrl }} style={styles.productPhoto} resizeMode="contain" accessibilityLabel={`Foto de ${product.name}`} /> : <WineBottle tone={product.tone} small />}</View>
