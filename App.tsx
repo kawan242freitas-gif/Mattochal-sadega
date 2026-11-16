@@ -166,6 +166,9 @@ function SiteScreen() {
   const [productDescription, setProductDescription] = useState("");
   const [productTone, setProductTone] = useState("ivory");
   const [productImageUrl, setProductImageUrl] = useState("");
+  const [productImageDataUrl, setProductImageDataUrl] = useState("");
+  const [productImageFileName, setProductImageFileName] = useState("");
+  const [productSaveBusy, setProductSaveBusy] = useState(false);
   const [productFormError, setProductFormError] = useState("");
 
   useEffect(() => {
@@ -462,6 +465,73 @@ function SiteScreen() {
     input.click();
   }
 
+  function chooseProductImage() {
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/webp";
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        setProductFormError("Selecione um arquivo de imagem.");
+        return;
+      }
+
+      setProductSaveBusy(true);
+      setProductFormError("");
+      const source = URL.createObjectURL(file);
+      const image = new window.Image();
+      image.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const context = canvas.getContext("2d");
+        if (!context) {
+          URL.revokeObjectURL(source);
+          setProductSaveBusy(false);
+          setProductFormError("Não foi possível preparar essa imagem. Tente outra foto.");
+          return;
+        }
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(source);
+        canvas.toBlob((blob) => {
+          if (!blob || blob.size > 1_800_000) {
+            setProductSaveBusy(false);
+            setProductFormError("A imagem ficou muito grande. Escolha uma foto mais leve.");
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result !== "string") {
+              setProductSaveBusy(false);
+              setProductFormError("Não foi possível ler a imagem. Tente novamente.");
+              return;
+            }
+            setProductImageDataUrl(reader.result);
+            setProductImageFileName(file.name.slice(0, 120));
+            setProductSaveBusy(false);
+          };
+          reader.onerror = () => {
+            setProductSaveBusy(false);
+            setProductFormError("Não foi possível ler a imagem. Tente novamente.");
+          };
+          reader.readAsDataURL(blob);
+        }, "image/jpeg", .86);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(source);
+        setProductSaveBusy(false);
+        setProductFormError("Não foi possível abrir essa imagem. Escolha outra foto.");
+      };
+      image.src = source;
+    };
+    input.click();
+  }
+
   async function uploadReceipt() {
     if (!orderToken || !receiptDataUrl) return;
     setReceiptBusy(true);
@@ -527,6 +597,8 @@ function SiteScreen() {
     setProductDescription(product?.description ?? "");
     setProductTone(product?.tone ?? "ivory");
     setProductImageUrl(product?.imageUrl ?? "");
+    setProductImageDataUrl("");
+    setProductImageFileName("");
     setProductFormError("");
     setProductFormOpen(true);
   }
@@ -555,6 +627,7 @@ function SiteScreen() {
   }
 
   async function saveProduct() {
+    if (productSaveBusy) return;
     const name = productName.trim();
     const label = productLabel.trim() || name.toUpperCase();
     if (!name || !productPrice.trim()) {
@@ -572,6 +645,44 @@ function SiteScreen() {
       setProductFormError("O preço promocional precisa ser menor que o preço normal.");
       return;
     }
+    if (databaseMode === "connected" && (!adminUnlocked || !adminToken)) {
+      setProductFormError("Desbloqueie a edição de produtos antes de salvar.");
+      return;
+    }
+    if (productImageDataUrl && (databaseMode !== "connected" || !adminToken)) {
+      setProductFormError("Conecte e desbloqueie o painel administrativo para hospedar a imagem no FiveManage.");
+      return;
+    }
+
+    let imageUrl = productImageUrl.trim();
+    if (productImageDataUrl) {
+      setProductSaveBusy(true);
+      setProductFormError("Enviando imagem ao FiveManage…");
+      try {
+        const uploadResponse = await fetch("/api/product-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminToken}` },
+          body: JSON.stringify({ dataUrl: productImageDataUrl, fileName: productImageFileName }),
+        });
+        const uploadResult = await uploadResponse.json() as { imageUrl?: string; error?: string };
+        if (!uploadResponse.ok || !uploadResult.imageUrl) {
+          if (uploadResult.error === "FIVEMANAGE_NOT_CONFIGURED") throw new Error("O token do FiveManage não está configurado no servidor.");
+          if (uploadResult.error === "FIVEMANAGE_UPLOAD_FAILED") throw new Error("Não foi possível enviar a imagem ao FiveManage. Tente novamente.");
+          throw new Error("Não foi possível preparar o envio da imagem.");
+        }
+        imageUrl = uploadResult.imageUrl;
+        setProductImageUrl(imageUrl);
+        setProductImageDataUrl("");
+        setProductImageFileName("");
+        setProductFormError("");
+      } catch (error) {
+        setProductSaveBusy(false);
+        setProductFormError(error instanceof Error ? error.message : "Não foi possível enviar a imagem.");
+        return;
+      }
+      setProductSaveBusy(false);
+    }
+
     const product: Product = {
       id: editingProductId ?? `product-${Date.now()}`,
       name,
@@ -582,13 +693,10 @@ function SiteScreen() {
       ...(stockQuantity !== undefined ? { stockQuantity } : {}),
       description: productDescription.trim() || "Produto selecionado pela Matto Chalés.",
       tone: productTone,
-      ...(productImageUrl.trim() ? { imageUrl: productImageUrl.trim() } : {}),
+      ...(imageUrl ? { imageUrl } : {}),
     };
     if (databaseMode === "connected") {
-      if (!adminUnlocked || !adminToken) {
-        setProductFormError("Desbloqueie a edição de produtos antes de salvar.");
-        return;
-      }
+      setProductSaveBusy(true);
       try {
         const response = await fetch(editingProductId ? `/api/products?id=${encodeURIComponent(editingProductId)}` : "/api/products", {
           method: editingProductId ? "PUT" : "POST",
@@ -601,6 +709,7 @@ function SiteScreen() {
           ? current.map((item) => item.id === editingProductId ? saved : item)
           : [...current, saved]);
       } catch {
+        setProductSaveBusy(false);
         setProductFormError("Não foi possível salvar no MongoDB. Tente novamente.");
         return;
       }
@@ -609,6 +718,7 @@ function SiteScreen() {
         ? current.map((item) => item.id === editingProductId ? product : item)
         : [...current, product]);
     }
+    setProductSaveBusy(false);
     setProductFormOpen(false);
     setEditingProductId(null);
   }
@@ -937,10 +1047,17 @@ function SiteScreen() {
                   <Text style={styles.adminHint}>Use 0 para marcar como esgotado. O estoque é descontado quando o cliente envia o comprovante.</Text>
                   <Text style={styles.settingLabel}>Descrição</Text>
                   <TextInput value={productDescription} onChangeText={setProductDescription} placeholder="Descreva o produto para a vitrine" placeholderTextColor="#9e9388" multiline style={[styles.searchInput, styles.descriptionInput]} />
-                  <Text style={styles.settingLabel}>Foto do produto (URL)</Text>
-                  <TextInput value={productImageUrl} onChangeText={setProductImageUrl} placeholder="https://..." placeholderTextColor="#9e9388" autoCapitalize="none" keyboardType="url" style={styles.searchInput} />
+                  <Text style={styles.settingLabel}>Imagem do produto</Text>
+                  <View style={styles.productImagePicker}>
+                    {productImageDataUrl || productImageUrl ? <Image source={{ uri: productImageDataUrl || productImageUrl }} style={styles.productImagePreview} resizeMode="contain" accessibilityLabel="Prévia da imagem do produto" /> : <View style={styles.productImagePlaceholder}><Text style={styles.productImagePlaceholderText}>Nenhuma imagem selecionada</Text></View>}
+                    <View style={styles.productImagePickerActions}>
+                      <Text style={styles.adminHint}>{productImageFileName || (productImageUrl ? "Imagem atual" : "Escolha uma foto do seu computador ou celular.")}</Text>
+                      <Pressable disabled={productSaveBusy} onPress={chooseProductImage} style={[styles.secondaryButton, productSaveBusy && styles.adminButtonDisabled]}><Text style={styles.secondaryButtonText}>{productSaveBusy ? "Processando…" : productImageDataUrl || productImageUrl ? "Trocar imagem" : "Anexar imagem"}</Text></Pressable>
+                    </View>
+                  </View>
+                  <Text style={styles.adminHint}>A imagem será hospedada no FiveManage ao salvar o produto.</Text>
                   {!!productFormError && <Text style={styles.formError}>{productFormError}</Text>}
-                  <View style={styles.adminActions}><Pressable onPress={() => setProductFormOpen(false)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cancelar</Text></Pressable><Pressable onPress={saveProduct} style={styles.primaryButton}><Text style={styles.buttonText}>{editingProductId ? "Salvar" : "Criar produto"}</Text></Pressable></View>
+                  <View style={styles.adminActions}><Pressable disabled={productSaveBusy} onPress={() => setProductFormOpen(false)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cancelar</Text></Pressable><Pressable disabled={productSaveBusy} onPress={saveProduct} style={[styles.primaryButton, productSaveBusy && styles.adminButtonDisabled]}><Text style={styles.buttonText}>{productSaveBusy ? "Processando…" : editingProductId ? "Salvar" : "Criar produto"}</Text></Pressable></View>
                 </ScrollView>
               ) : (
                 <ScrollView style={[styles.adminScroll, styles.adminScrollFull]} contentContainerStyle={styles.adminForm}>
@@ -1322,6 +1439,11 @@ const styles = StyleSheet.create({
   productCategoryOptionActive: { borderColor: "#d5a472", backgroundColor: "#765036" },
   productCategoryOptionText: { color: "#eee5da", fontSize: 11, fontWeight: "600" },
   descriptionInput: { minHeight: 76, paddingTop: 11, textAlignVertical: "top" },
+  productImagePicker: { minHeight: 98, flexDirection: "row", alignItems: "center", gap: 12, padding: 9, borderWidth: 1, borderColor: "#49372a", borderRadius: 8, backgroundColor: "#15100c" },
+  productImagePreview: { width: 76, height: 82, borderRadius: 5, backgroundColor: "#0d0b09" },
+  productImagePlaceholder: { width: 76, height: 82, alignItems: "center", justifyContent: "center", padding: 5, borderWidth: 1, borderColor: "#49372a", borderRadius: 5, backgroundColor: "#0d0b09" },
+  productImagePlaceholderText: { color: "#9e9388", fontSize: 8, textAlign: "center" },
+  productImagePickerActions: { flex: 1, minWidth: 0, alignItems: "flex-start", gap: 8 },
   adminScroll: { maxHeight: 420 },
   adminScrollFull: { flex: 1, maxHeight: "100%" },
   adminForm: { gap: 9, paddingBottom: 4 },
